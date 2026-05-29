@@ -11,6 +11,8 @@ namespace HRTMS.Models
         [Required]
         public string Name { get; set; } = string.Empty;
 
+        public string TrackID { get; set; } = string.Empty;
+
         [ForeignKey("TrackID")]
         public Tracks? Tracks { get; set; }
 
@@ -20,6 +22,6 @@ namespace HRTMS.Models
         [Required]
         public DateTime End { get; set; }
 
-        public string Status { get; set; } = string.Empty;
+        public string Status { get; set; } = "NotStarted";
     }
 }

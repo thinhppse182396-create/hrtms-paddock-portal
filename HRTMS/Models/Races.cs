@@ -8,7 +8,7 @@ namespace HRTMS.Models
         [Key]
         public string RaceID { get; set; } = string.Empty;
 
-        public int TournamentId { get; set; }
+        public string TournamentId { get; set; } = string.Empty;
 
         [ForeignKey("TournamentId")]
         public Tournaments? Tournament { get; set; }
@@ -17,8 +17,9 @@ namespace HRTMS.Models
 
         public DateTime Date { get; set; }
 
+        public string TrackID { get; set; } = string.Empty;
         [ForeignKey("TrackID")]
-        public Tracks? Tracks { get; set; }
+        public Tracks? Track { get; set; }
 
         public string Distance { get; set; } = string.Empty;
         public int Lanes { get; set; }

@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Runtime.ConstrainedExecution;
+using System.Security.Principal;
 
 namespace HRTMS.Models
 {
@@ -30,5 +31,10 @@ namespace HRTMS.Models
         public DateTime Health_Cert_Expiry { get; set; }
 
         public string Status { get; set; } = string.Empty;
+
+        public string OwnerId { get; set; } = string.Empty;
+
+        [ForeignKey("OwnerId")]
+        public Accounts? Owner { get; set; }
     }
 }

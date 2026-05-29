@@ -6,8 +6,8 @@ namespace HRTMS.Models
     public class Jockeys
     {
         [Key]
-        public int Id { get; set; }
-        public int AccountId { get; set; }
+        public String JockeyId { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
 
         [ForeignKey("AccountId")]
         public Accounts? Account { get; set; }
