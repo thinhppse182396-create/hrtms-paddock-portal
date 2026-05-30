@@ -6,8 +6,8 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { horses as seed, type Horse } from "@/data/mockData";
+import { getHorses, createHorse } from "@/services/horseService";
+import type { Horse } from "@/data/mock-horses"; 
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/owner/my-horses")({ component: MyHorses });
@@ -28,7 +28,8 @@ const fields: Field[] = [
 ];
 
 function MyHorses() {
-  const [rows, setRows, loading] = usePersistentCollection<Horse>("owner:horses", seed);
+const [rows, setRows] = useState<Horse[]>([]);
+const [loading, setLoading] = useState(true);  
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Horse | null>(null);
 const [editing, setEditing] = useState<Horse | null>(null);
