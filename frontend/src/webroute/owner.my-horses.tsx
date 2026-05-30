@@ -6,7 +6,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { getHorses, createHorse } from "@/services/horseService";
+import { getHorses, createHorse } from "@/services/horseAPI";
 import type { Horse } from "@/data/mock-horses"; 
 import { Plus } from "lucide-react";
 
