@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -7,16 +8,24 @@ import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
 import { raceResults as seed, races, registrations, getHorse, getJockey, getRace } from "@/data/mockData";
+import { getRaceResults } from "@/services/raceResultAPI";
 import { Send } from "lucide-react";
 
-type Result = (typeof seed)[number];
-
+type Result = {
+  raceId: string;
+  horseId: string;
+  jockeyId: string;
+  finishTime: string;
+  rank: number;
+  disqualified: boolean;
+  published: boolean;
+};
 export const Route = createFileRoute("/referee/record-result")({ component: ResultRecording });
 
 function ResultRecording() {
   // SHARED key with Admin Publish Results — referee submit -> admin sees instantly.
-  const [rows, setRows] = usePersistentCollection<Result>("admin:results", seed);
-
+  const [races, setRaces] = useState([]);
+  
   const [raceId, setRaceId] = useState(races[0]?.id ?? "");
   const race = getRace(raceId);
   const entries = useMemo(
@@ -26,7 +35,21 @@ function ResultRecording() {
 
   const [times, setTimes] = useState<Record<string, string>>({});
   const [dq, setDq] = useState<Record<string, boolean>>({});
+const [rows, setRows] = useState<Result[]>([]);
 
+  useEffect(() => {
+  const loadResults = async () => {
+    try {
+      const data = await getRaceResults();
+      setRows(data);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load race results");
+    }
+  };
+
+  loadResults();
+}, []);
   const draft = entries.map(e => ({
     horseId: e.horseId,
     jockeyId: e.jockeyId,
@@ -38,7 +61,7 @@ function ResultRecording() {
     .sort((a, b) => a.finishTime.localeCompare(b.finishTime))
     .map((d, i) => ({ ...d, rank: i + 1 }));
 
-  const submit = () => {
+  const submit = async () => { 
     if (!race) return;
     if (ranked.length === 0 && !draft.some(d => d.disqualified)) {
       toast.error("Cần nhập ít nhất 1 finish time hoặc đánh dấu DQ"); return;
@@ -57,8 +80,22 @@ function ResultRecording() {
         published: false,
       };
     });
-    setRows([...others, ...submitted]);
-    toast.success("Đã gửi kết quả lên Admin", { description: `${raceId} • ${submitted.length} runners` });
+ try {
+  await Promise.all(
+    submitted.map(result => createRaceResult(result))
+  );
+
+  const updatedResults = await getRaceResults();
+  setRows(updatedResults);
+
+  toast.success("Đã gửi kết quả lên Admin", {
+    description: `${raceId} • ${submitted.length} runners`
+  });
+} catch (error) {
+  console.error(error);
+
+  toast.error("Không thể gửi kết quả");
+}
   };
 
   return (
