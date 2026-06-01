@@ -16,5 +16,6 @@ namespace HRTMS.Models.on_board
 
         public int Rank { get; set; }
         public string Violation { get; set; } = string.Empty;
+        public decimal? PrizeMoney { get; set; }
     }
 }

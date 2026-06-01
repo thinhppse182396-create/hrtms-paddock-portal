@@ -9,6 +9,7 @@ namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("jockeyInvitations")]
+[Route("api/jockey-invitations")]
 public class JockeyInvitationsController : ControllerBase
 {
     private const string InvitationEntityName = "JockeyInvitation";

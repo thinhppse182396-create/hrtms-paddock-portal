@@ -2,6 +2,7 @@ using HRTMS.Data;
 using HRTMS.Models.on_board;
 using HRTMS.Models.Statuss;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
@@ -9,6 +10,7 @@ namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("registrations")]
+[Route("api/registrations")]
 public class RegistrationsController : ControllerBase
 {
     private const string RegistrationEntityName = "Registration";
@@ -93,6 +95,13 @@ public class RegistrationsController : ControllerBase
             return BadRequest(new { message = validationError });
         }
 
+        if (await _context.RaceRegistrations.AnyAsync(registration =>
+            registration.RaceId == request.RaceId &&
+            registration.HorseId == request.HorseId))
+        {
+            return Conflict(new { message = "This horse is already registered for this race." });
+        }
+
         var pendingStatus = await FindRegistrationStatus(PendingStatusCode);
         if (pendingStatus is null)
         {
@@ -110,7 +119,16 @@ public class RegistrationsController : ControllerBase
         };
 
         _context.RaceRegistrations.Add(registration);
-        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            return Conflict(new { message = "This horse is already registered for this race." });
+        }
 
         return CreatedAtAction(
             nameof(GetRegistrations),

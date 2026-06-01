@@ -8,6 +8,7 @@ namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("awards")]
+[Route("api/awards")]
 public class AwardsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -73,10 +74,29 @@ public class AwardsController : ControllerBase
         return CreatedAtAction(nameof(GetAwards), new { raceId = award.RaceID }, response);
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<AwardResponse>> UpdateAward(int id, UpdateAwardRequest request)
+    {
+        var award = await _context.Awards.FindAsync(id);
+        if (award is null)
+        {
+            return NotFound();
+        }
+
+        award.PriceMoney = request.PriceMoney;
+        await _context.SaveChangesAsync();
+
+        return Ok(new AwardResponse(award.Id, award.RaceID, award.Rank, award.PriceMoney));
+    }
+
     public record CreateAwardRequest(
         [Required] string RaceId,
         [Range(1, int.MaxValue)] int Rank,
-        [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+        [Range(typeof(decimal), "0.01", "9999999999999999.99")]
+        decimal PriceMoney);
+
+    public record UpdateAwardRequest(
+        [Range(typeof(decimal), "0.01", "9999999999999999.99")]
         decimal PriceMoney);
 
     public record AwardResponse(

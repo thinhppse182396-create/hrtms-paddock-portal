@@ -95,10 +95,19 @@ public class ApplicationDbContext : DbContext
             .HasPrecision(18, 2);
 
         modelBuilder.Entity<RaceResults>()
-            .HasIndex(result => new { result.RaceId, result.Rank });
+            .HasIndex(result => new { result.RaceId, result.Rank })
+            .IsUnique();
 
         modelBuilder.Entity<RaceResults>()
             .HasIndex(result => new { result.RaceId, result.HorseId })
+            .IsUnique();
+
+        modelBuilder.Entity<RaceResults>()
+            .Property(result => result.PrizeMoney)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Registration>()
+            .HasIndex(registration => new { registration.RaceId, registration.HorseId })
             .IsUnique();
 
         //modelBuilder.Entity<Feedback>()
@@ -114,14 +123,18 @@ public class ApplicationDbContext : DbContext
             new Status { StatusId = 3, EntityName = "Referee", StatusCode = "ACTIVE", StatusName = "Active", SortOrder = 1, IsActive = true },
             new Status { StatusId = 4, EntityName = "Referee", StatusCode = "SUSPENDED", StatusName = "Suspended", SortOrder = 2, IsActive = true },
 
+            new Status { StatusId = 5, EntityName = "Jockey", StatusCode = "ACTIVE", StatusName = "Active", SortOrder = 1, IsActive = true },
+            new Status { StatusId = 6, EntityName = "Jockey", StatusCode = "SUSPENDED", StatusName = "Suspended", SortOrder = 2, IsActive = true },
+
             new Status { StatusId = 9, EntityName = "Horse", StatusCode = "INJURED", StatusName = "Injured", SortOrder = 1, IsActive = true },
             new Status { StatusId = 10, EntityName = "Horse", StatusCode = "ELIGIBLE", StatusName = "Eligible", SortOrder = 1, IsActive = true },
             new Status { StatusId = 11, EntityName = "Horse", StatusCode = "SUSPENDED", StatusName = "Suspended", SortOrder = 1, IsActive = true },
 
             new Status { StatusId = 12, EntityName = "Race", StatusCode = "SCHEDULED", StatusName = "Scheduled", SortOrder = 1, IsActive = true },
             new Status { StatusId = 13, EntityName = "Race", StatusCode = "ONGOING", StatusName = "Ongoing", SortOrder = 2, IsActive = true },
-            new Status { StatusId = 14, EntityName = "Race", StatusCode = "COMPLETED", StatusName = "Completed", SortOrder = 3, IsActive = true },
-            new Status { StatusId = 15, EntityName = "Race", StatusCode = "CANCELLED", StatusName = "Cancelled", SortOrder = 4, IsActive = true },
+            new Status { StatusId = 14, EntityName = "Race", StatusCode = "FINISHED", StatusName = "Finished", SortOrder = 3, IsActive = true },
+            new Status { StatusId = 15, EntityName = "Race", StatusCode = "CANCELLED", StatusName = "Cancelled", SortOrder = 5, IsActive = true },
+            new Status { StatusId = 23, EntityName = "Race", StatusCode = "PUBLISHED", StatusName = "Published", SortOrder = 4, IsActive = true },
 
             new Status { StatusId = 16, EntityName = "Registration", StatusCode = "PENDING", StatusName = "Pending", SortOrder = 1, IsActive = true },
             new Status { StatusId = 17, EntityName = "Registration", StatusCode = "APPROVED", StatusName = "Approved", SortOrder = 2, IsActive = true },
@@ -131,7 +144,12 @@ public class ApplicationDbContext : DbContext
             new Status { StatusId = 20, EntityName = "Feedback", StatusCode = "RESOLVED", StatusName = "Resolved", SortOrder = 1, IsActive = true },
 
             new Status { StatusId = 21, EntityName = "JockeyInvitation", StatusCode = "PENDING", StatusName = "Pending", SortOrder = 1, IsActive = true },
-            new Status { StatusId = 22, EntityName = "JockeyInvitation", StatusCode = "ACCEPTED", StatusName = "Accepted", SortOrder = 2, IsActive = true }
+            new Status { StatusId = 22, EntityName = "JockeyInvitation", StatusCode = "ACCEPTED", StatusName = "Accepted", SortOrder = 2, IsActive = true },
+
+            new Status { StatusId = 24, EntityName = "Tournament", StatusCode = "DRAFT", StatusName = "Draft", SortOrder = 1, IsActive = true },
+            new Status { StatusId = 25, EntityName = "Tournament", StatusCode = "OPEN", StatusName = "Open", SortOrder = 2, IsActive = true },
+            new Status { StatusId = 26, EntityName = "Tournament", StatusCode = "CLOSED", StatusName = "Closed", SortOrder = 3, IsActive = true },
+            new Status { StatusId = 27, EntityName = "Tournament", StatusCode = "COMPLETED", StatusName = "Completed", SortOrder = 4, IsActive = true }
         );
 
         modelBuilder.Entity<Roles>()

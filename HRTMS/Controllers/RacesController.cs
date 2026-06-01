@@ -9,23 +9,26 @@ namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("races")]
+[Route("api/races")]
 public class RacesController : ControllerBase
 {
     private const string OpenStatusAlias = "OPEN";
+    private const string CompletedStatusAlias = "COMPLETED";
     private const string ScheduledStatusCode = "SCHEDULED";
+    private const string FinishedStatusCode = "FINISHED";
+    private const string PublishedStatusCode = "PUBLISHED";
 
     private static readonly string[] PublishedStatusCodes =
     [
-        ScheduledStatusCode,
-        "ONGOING",
-        "COMPLETED"
+        PublishedStatusCode
     ];
 
     private static readonly string[] RaceStatusCodes =
     [
         ScheduledStatusCode,
         "ONGOING",
-        "COMPLETED",
+        FinishedStatusCode,
+        PublishedStatusCode,
         "CANCELLED"
     ];
 
@@ -104,6 +107,11 @@ public class RacesController : ControllerBase
             return BadRequest(new { message = "Race status does not exist or is inactive." });
         }
 
+        if (status.StatusCode == PublishedStatusCode)
+        {
+            return BadRequest(new { message = "Use the publish endpoint to publish a race." });
+        }
+
         var race = new Races
         {
             RaceID = request.RaceId,
@@ -141,6 +149,17 @@ public class RacesController : ControllerBase
             return BadRequest(new { message = "Race status does not exist or is inactive." });
         }
 
+        if (status.StatusCode == PublishedStatusCode && race.StatusId != status.StatusId)
+        {
+            return BadRequest(new { message = "Use the publish endpoint to publish a race." });
+        }
+
+        if (status.StatusCode != PublishedStatusCode &&
+            await HasRaceStatus(race.StatusId, PublishedStatusCode))
+        {
+            return Conflict(new { message = "A published race status cannot be changed." });
+        }
+
         race.TournamentId = request.TournamentId;
         race.RaceName = request.RaceName;
         race.Distance = request.Distance;
@@ -175,6 +194,40 @@ public class RacesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("{id}/publish")]
+    public async Task<ActionResult<RaceResponse>> PublishRace(string id)
+    {
+        var race = await _context.Races
+            .Include(item => item.Status)
+            .SingleOrDefaultAsync(item => item.RaceID == id);
+
+        if (race is null)
+        {
+            return NotFound();
+        }
+
+        var publishedStatus = await FindRaceStatus(PublishedStatusCode);
+        if (publishedStatus is null)
+        {
+            return Problem("The published race status is not configured.");
+        }
+
+        if (race.Status?.StatusCode == PublishedStatusCode)
+        {
+            return Ok(ToResponse(race, publishedStatus.StatusCode));
+        }
+
+        if (race.Status?.StatusCode != FinishedStatusCode)
+        {
+            return Conflict(new { message = "Only a finished race can be published." });
+        }
+
+        race.StatusId = publishedStatus.StatusId;
+        await _context.SaveChangesAsync();
+
+        return Ok(ToResponse(race, publishedStatus.StatusCode));
+    }
+
     private async Task<Status?> FindRaceStatus(string statusCode)
     {
         var normalizedStatusCode = NormalizeStatusCode(statusCode);
@@ -185,12 +238,23 @@ public class RacesController : ControllerBase
             status.IsActive);
     }
 
+    private async Task<bool> HasRaceStatus(int statusId, string statusCode)
+    {
+        return await _context.Statuses.AnyAsync(status =>
+            status.StatusId == statusId &&
+            status.EntityName == "Race" &&
+            status.StatusCode == statusCode);
+    }
+
     private static string NormalizeStatusCode(string statusCode)
     {
         var normalizedStatusCode = statusCode.Trim().ToUpperInvariant();
-        return normalizedStatusCode == OpenStatusAlias
-            ? ScheduledStatusCode
-            : normalizedStatusCode;
+        return normalizedStatusCode switch
+        {
+            OpenStatusAlias => ScheduledStatusCode,
+            CompletedStatusAlias => FinishedStatusCode,
+            _ => normalizedStatusCode
+        };
     }
 
     private static IQueryable<RaceResponse> ProjectResponses(IQueryable<Races> query)

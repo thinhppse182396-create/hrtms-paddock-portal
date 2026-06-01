@@ -398,6 +398,24 @@ namespace HRTMS.Migrations
                         },
                         new
                         {
+                            StatusId = 5,
+                            EntityName = "Jockey",
+                            IsActive = true,
+                            SortOrder = 1,
+                            StatusCode = "ACTIVE",
+                            StatusName = "Active"
+                        },
+                        new
+                        {
+                            StatusId = 6,
+                            EntityName = "Jockey",
+                            IsActive = true,
+                            SortOrder = 2,
+                            StatusCode = "SUSPENDED",
+                            StatusName = "Suspended"
+                        },
+                        new
+                        {
                             StatusId = 9,
                             EntityName = "Horse",
                             IsActive = true,
@@ -447,17 +465,26 @@ namespace HRTMS.Migrations
                             EntityName = "Race",
                             IsActive = true,
                             SortOrder = 3,
-                            StatusCode = "COMPLETED",
-                            StatusName = "Completed"
+                            StatusCode = "FINISHED",
+                            StatusName = "Finished"
                         },
                         new
                         {
                             StatusId = 15,
                             EntityName = "Race",
                             IsActive = true,
-                            SortOrder = 4,
+                            SortOrder = 5,
                             StatusCode = "CANCELLED",
                             StatusName = "Cancelled"
+                        },
+                        new
+                        {
+                            StatusId = 23,
+                            EntityName = "Race",
+                            IsActive = true,
+                            SortOrder = 4,
+                            StatusCode = "PUBLISHED",
+                            StatusName = "Published"
                         },
                         new
                         {
@@ -521,6 +548,42 @@ namespace HRTMS.Migrations
                             SortOrder = 2,
                             StatusCode = "ACCEPTED",
                             StatusName = "Accepted"
+                        },
+                        new
+                        {
+                            StatusId = 24,
+                            EntityName = "Tournament",
+                            IsActive = true,
+                            SortOrder = 1,
+                            StatusCode = "DRAFT",
+                            StatusName = "Draft"
+                        },
+                        new
+                        {
+                            StatusId = 25,
+                            EntityName = "Tournament",
+                            IsActive = true,
+                            SortOrder = 2,
+                            StatusCode = "OPEN",
+                            StatusName = "Open"
+                        },
+                        new
+                        {
+                            StatusId = 26,
+                            EntityName = "Tournament",
+                            IsActive = true,
+                            SortOrder = 3,
+                            StatusCode = "CLOSED",
+                            StatusName = "Closed"
+                        },
+                        new
+                        {
+                            StatusId = 27,
+                            EntityName = "Tournament",
+                            IsActive = true,
+                            SortOrder = 4,
+                            StatusCode = "COMPLETED",
+                            StatusName = "Completed"
                         });
                 });
 
@@ -563,6 +626,10 @@ namespace HRTMS.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<decimal?>("PrizeMoney")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("RaceId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -581,7 +648,8 @@ namespace HRTMS.Migrations
                     b.HasIndex("RaceId", "HorseId")
                         .IsUnique();
 
-                    b.HasIndex("RaceId", "Rank");
+                    b.HasIndex("RaceId", "Rank")
+                        .IsUnique();
 
                     b.ToTable("RaceResults");
                 });
@@ -649,9 +717,10 @@ namespace HRTMS.Migrations
 
                     b.HasIndex("JockeyName");
 
-                    b.HasIndex("RaceId");
-
                     b.HasIndex("StatusId");
+
+                    b.HasIndex("RaceId", "HorseId")
+                        .IsUnique();
 
                     b.ToTable("RaceRegistrations");
                 });
