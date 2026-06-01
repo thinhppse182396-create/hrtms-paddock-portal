@@ -1,5 +1,3 @@
-// services/registrationAPI.ts
-
 export const createRegistration = async (registration: any) => {
   const response = await fetch(
     `${process.env.REACT_APP_API_URL}/registrations`,
