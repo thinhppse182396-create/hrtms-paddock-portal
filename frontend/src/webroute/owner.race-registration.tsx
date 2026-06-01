@@ -25,15 +25,42 @@ const OWNER_ID = "O001";
 type Reg = (typeof regSeed)[number] & { reason?: string; backupJockeyId?: string };
 
 function RaceRegistration() {
-  const [registrations, setRegistrations] = usePersistentCollection<Reg>("admin:registrations", regSeed as Reg[]);
-  const [allHorses] = usePersistentCollection<Horse>("owner:horses", horseSeed);
+const [registrations, setRegistrations] = useState<Reg[]>([]);
+const [allHorses, setAllHorses] = useState<Horse[]>([]);
+const [jockeys, setJockeys] = useState<any[]>([]);
+const [races, setRaces] = useState<any[]>([]);
 
   const [open, setOpen] = useState(false);
   const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
   const [selectedHorseId, setSelectedHorseId] = useState<string | null>(null);
   const [selectedJockeyId, setSelectedJockeyId] = useState<string>(jockeys[0]?.id ?? "");
   const [backupJockeyId, setBackupJockeyId] = useState<string>("");
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      const [
+        raceData,
+        horseData,
+        jockeyData,
+        registrationData,
+      ] = await Promise.all([
+        getRaces(),
+        getHorses(),
+        getJockeys(),
+        getRegistrations(),
+      ]);
 
+      setRaces(raceData);
+      setAllHorses(horseData);
+      setJockeys(jockeyData);
+      setRegistrations(registrationData);
+    } catch (error) {
+      toast.error("Failed to load data");
+    }
+  };
+
+  loadData();
+}, []);
   const openRaces = races.filter(r => r.status === "Scheduled");
   const myHorses = useMemo(() => allHorses.filter(h => h.ownerId === OWNER_ID), [allHorses]);
   const selectedRace = openRaces.find(r => r.id === selectedRaceId) ?? null;
@@ -65,10 +92,18 @@ function RaceRegistration() {
   );
   const canSubmit = !!selectedHorseId && !!selectedJockeyId && !duplicate;
 
-  const submit = () => {
+ const submit = async () =>  {
     if (!selectedRace || !selectedHorseId || !selectedJockeyId) return;
-    const max = registrations.reduce((m, r) => Math.max(m, Number(String(r.id).replace(/\D/g, "")) || 0), 0);
-    const reg: Reg = {
+const reg = {
+  raceId: selectedRace.id,
+  horseId: selectedHorseId,
+  jockeyId: selectedJockeyId,
+  ownerId: OWNER_ID,
+  status: "Pending",
+  submittedAt: new Date().toISOString(),
+  backupJockeyId,
+};
+   const reg: Reg = {
       id: `RG${String(max + 1).padStart(3, "0")}`,
       raceId: selectedRace.id,
       horseId: selectedHorseId,
@@ -78,8 +113,23 @@ function RaceRegistration() {
       submittedAt: new Date().toISOString().slice(0, 10),
       ...(backupJockeyId ? { backupJockeyId } : {}),
     };
-    setRegistrations(rs => [...rs, reg]);
-    setOpen(false);
+try {
+  const savedReg = await createRegistration(reg);
+
+  setRegistrations(prev => [
+    ...prev,
+    savedReg,
+  ]);
+
+  toast.success("Registration submitted");
+
+  setOpen(false);
+  setSelectedHorseId(null);
+  setBackupJockeyId("");
+
+} catch (error) {
+  toast.error("Failed to submit registration");
+}    setOpen(false);
     setSelectedHorseId(null);
     setBackupJockeyId("");
     toast.success("Registration submitted", { description: `${reg.id} • awaiting admin approval` });
