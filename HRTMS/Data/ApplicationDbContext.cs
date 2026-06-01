@@ -101,6 +101,10 @@ public class ApplicationDbContext : DbContext
             .HasIndex(result => new { result.RaceId, result.HorseId })
             .IsUnique();
 
+        modelBuilder.Entity<RaceResults>()
+            .Property(result => result.PrizeMoney)
+            .HasPrecision(18, 2);
+
         //modelBuilder.Entity<Feedback>()
         //    .HasOne(f => f.Status)
         //    .WithMany()
@@ -120,8 +124,9 @@ public class ApplicationDbContext : DbContext
 
             new Status { StatusId = 12, EntityName = "Race", StatusCode = "SCHEDULED", StatusName = "Scheduled", SortOrder = 1, IsActive = true },
             new Status { StatusId = 13, EntityName = "Race", StatusCode = "ONGOING", StatusName = "Ongoing", SortOrder = 2, IsActive = true },
-            new Status { StatusId = 14, EntityName = "Race", StatusCode = "COMPLETED", StatusName = "Completed", SortOrder = 3, IsActive = true },
-            new Status { StatusId = 15, EntityName = "Race", StatusCode = "CANCELLED", StatusName = "Cancelled", SortOrder = 4, IsActive = true },
+            new Status { StatusId = 14, EntityName = "Race", StatusCode = "FINISHED", StatusName = "Finished", SortOrder = 3, IsActive = true },
+            new Status { StatusId = 15, EntityName = "Race", StatusCode = "CANCELLED", StatusName = "Cancelled", SortOrder = 5, IsActive = true },
+            new Status { StatusId = 23, EntityName = "Race", StatusCode = "PUBLISHED", StatusName = "Published", SortOrder = 4, IsActive = true },
 
             new Status { StatusId = 16, EntityName = "Registration", StatusCode = "PENDING", StatusName = "Pending", SortOrder = 1, IsActive = true },
             new Status { StatusId = 17, EntityName = "Registration", StatusCode = "APPROVED", StatusName = "Approved", SortOrder = 2, IsActive = true },

@@ -76,7 +76,7 @@ public class AwardsController : ControllerBase
     public record CreateAwardRequest(
         [Required] string RaceId,
         [Range(1, int.MaxValue)] int Rank,
-        [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+        [Range(typeof(decimal), "0.01", "9999999999999999.99")]
         decimal PriceMoney);
 
     public record AwardResponse(
