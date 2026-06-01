@@ -1,12 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.Statuss;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRTMS.Models
+
+namespace HRTMS.Models.Roles
 {
     public class Accounts
     {
         [Key]
-        public string Id { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Tên đăng nhập không được để trống")]
         [StringLength(50)]
@@ -18,11 +20,13 @@ namespace HRTMS.Models
         [Required]
         [StringLength(100)]
         public string FullName { get; set; } = string.Empty;
+        public int RoleId { get; set; }
 
-        [Required]
-        public string Role { get; set; } = string.Empty;
+        [ForeignKey("RoleId")]
+        public Roles? Role { get; set; }
 
-        [Required]
-        public string Status { get; set; } = string.Empty;
+        public int StatusId { get; set; }
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; }
     }
 }

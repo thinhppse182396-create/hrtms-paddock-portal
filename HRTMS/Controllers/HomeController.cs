@@ -1,4 +1,4 @@
-using HRTMS.Models;
+using HRTMS.Models.Error;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 

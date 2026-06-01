@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.Statuss;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.on_board
 {
     public class Tournaments
     {
@@ -22,6 +23,8 @@ namespace HRTMS.Models
         [Required]
         public DateTime End { get; set; }
 
-        public string Status { get; set; } = "NotStarted";
+        public int StatusId { get; set; }
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; }
     }
 }

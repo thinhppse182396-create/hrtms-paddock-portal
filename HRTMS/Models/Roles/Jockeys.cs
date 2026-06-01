@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.Statuss;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.Roles
 {
     public class Jockeys
     {
@@ -15,7 +16,10 @@ namespace HRTMS.Models
         public string LicenseNumber { get; set; } = string.Empty;
         public int Weight { get; set; }
         public string Ranking { get; set; } = string.Empty;
-        public string Status { get; set; } = "Active";
+
+        public int StatusId { get; set; }
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; }
         public string Contact {  get; set; } = string.Empty;
     }
 }

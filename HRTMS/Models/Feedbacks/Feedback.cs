@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.on_board;
+using HRTMS.Models.Roles;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Security.Principal;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.Feedbacks
 {
     public class Feedback
     {

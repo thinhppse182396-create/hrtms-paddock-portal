@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.Roles;
+using HRTMS.Models.Statuss;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Runtime.ConstrainedExecution;
 using System.Security.Principal;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.Horses
 {
     public class Horse
     {
@@ -12,7 +14,7 @@ namespace HRTMS.Models
 
         [Required]
         [StringLength(50)]
-        public string Name { get; set; } = string.Empty;
+        public string HourseName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(50)]
@@ -30,7 +32,9 @@ namespace HRTMS.Models
         [Required]
         public DateTime Health_Cert_Expiry { get; set; }
 
-        public string Status { get; set; } = string.Empty;
+        public int StatusId { get; set; }
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; }
 
         public string OwnerId { get; set; } = string.Empty;
 

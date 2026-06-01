@@ -4,6 +4,7 @@ using HRTMS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRTMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601193916_AddAwards")]
+    partial class AddAwards
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -125,9 +128,6 @@ namespace HRTMS.Migrations
                     b.HasIndex("RoleId");
 
                     b.HasIndex("StatusId");
-
-                    b.HasIndex("Username")
-                        .IsUnique();
 
                     b.ToTable("Accounts");
                 });
@@ -551,41 +551,6 @@ namespace HRTMS.Migrations
                     b.ToTable("Awards");
                 });
 
-            modelBuilder.Entity("HRTMS.Models.on_board.RaceResults", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("HorseId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("RaceId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Rank")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Violation")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HorseId");
-
-                    b.HasIndex("RaceId", "HorseId")
-                        .IsUnique();
-
-                    b.HasIndex("RaceId", "Rank");
-
-                    b.ToTable("RaceResults");
-                });
-
             modelBuilder.Entity("HRTMS.Models.on_board.Races", b =>
                 {
                     b.Property<string>("RaceID")
@@ -898,25 +863,6 @@ namespace HRTMS.Migrations
                         .HasForeignKey("RaceID")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.Navigation("Races");
-                });
-
-            modelBuilder.Entity("HRTMS.Models.on_board.RaceResults", b =>
-                {
-                    b.HasOne("HRTMS.Models.Horses.Horse", "Horses")
-                        .WithMany()
-                        .HasForeignKey("HorseId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("HRTMS.Models.on_board.Races", "Races")
-                        .WithMany()
-                        .HasForeignKey("RaceId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Horses");
 
                     b.Navigation("Races");
                 });

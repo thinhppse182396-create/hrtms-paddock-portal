@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.on_board
 {
     public class Tracks
     {

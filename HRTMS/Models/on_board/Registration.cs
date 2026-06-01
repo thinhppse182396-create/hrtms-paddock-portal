@@ -1,12 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using HRTMS.Models.Horses;
+using HRTMS.Models.Roles;
+using HRTMS.Models.Statuss;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace HRTMS.Models
+namespace HRTMS.Models.on_board
 {
-    public class RaceRegistration
+    public class Registration
     {
         [Key]
-        public string RaceRegistrationId { get; set; } = string.Empty;
+        public string RegistrationId { get; set; } = string.Empty;
 
         public string RaceId { get; set; } = string.Empty;
         [ForeignKey("RaceId")]
@@ -16,14 +19,16 @@ namespace HRTMS.Models
         [ForeignKey("HorseId")]
         public Horse? Horse { get; set; }
 
-        public string JockeyId { get; set; } = string.Empty;
-        [ForeignKey("JockeyId")]
+        public string JockeyName { get; set; } = string.Empty;
+        [ForeignKey("JockeyName")]
         public Jockeys? Jockey { get; set; }
 
         public string? BackupJockeyId { get; set; }
         [ForeignKey("BackupJockeyId")]
         public Jockeys? BackupJockey { get; set; }
 
-        public string Status { get; set; } = "Pending";
+        public int StatusId { get; set; }
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; }
     }
 }

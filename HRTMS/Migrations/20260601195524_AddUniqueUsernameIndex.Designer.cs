@@ -4,6 +4,7 @@ using HRTMS.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRTMS.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601195524_AddUniqueUsernameIndex")]
+    partial class AddUniqueUsernameIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -577,9 +580,6 @@ namespace HRTMS.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("HorseId");
-
-                    b.HasIndex("RaceId", "HorseId")
-                        .IsUnique();
 
                     b.HasIndex("RaceId", "Rank");
 

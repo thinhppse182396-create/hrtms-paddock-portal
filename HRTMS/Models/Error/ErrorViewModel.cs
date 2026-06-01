@@ -1,4 +1,4 @@
-namespace HRTMS.Models
+namespace HRTMS.Models.Error
 {
     public class ErrorViewModel
     {
