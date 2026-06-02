@@ -12,7 +12,7 @@ import { races as seed, tournaments, getTournament, registrations, refereeAssign
 import { auditLog } from "@/lib/auditLog";
 import { saveRace } from "@/lib/mockApi";
 import { Plus, AlertTriangle } from "lucide-react";
-
+import { saveRaceToServer } from "@/services/awardAPI";
 export const Route = createFileRoute("/admin/races")({ component: RaceManagement });
 
 type RaceForm = {
@@ -82,7 +82,7 @@ const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return (
 
 function RaceManagement() {
   const [rows, setRows, loading] = usePersistentCollection<Race>("admin:races", seed);
-
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Race | null>(null);
   const [viewing, setViewing] = useState<Race | null>(null);
@@ -112,7 +112,7 @@ function RaceManagement() {
     return null;
   };
 
-  const upsert = async (v: RaceForm) => {
+const upsert = async (v: RaceForm) => {
     const prev = rows.find(r => r.id === v.id);
     const race = fromForm(v, prev);
     const c = detectConflict(race, prev?.id);
@@ -121,6 +121,35 @@ function RaceManagement() {
       toast.error("Cannot save race", { description: c });
       return;
     }
+  try {
+      setIsSubmitting(true); 
+      const savedRaceFromServer = await saveRaceToServer(race, !!prev);
+
+      setRows(r => prev 
+        ? r.map(x => x.id === savedRaceFromServer.id ? savedRaceFromServer : x) 
+        : [...r, savedRaceFromServer]
+      );
+
+      auditLog.add({ 
+        actor: "System Admin", 
+        action: prev ? "EDIT_RACE" : "CREATE_RACE", 
+        target: savedRaceFromServer.id, 
+        details: `${savedRaceFromServer.track} • ${savedRaceFromServer.date} ${savedRaceFromServer.time}` 
+      });
+
+      setQ(""); setTFilter(""); setSFilter("");
+      setCreating(false); setEditing(null); setConflict(null);
+      
+      toast.success(prev ? "Race updated" : "Race created", { 
+        description: `${savedRaceFromServer.id} • ${savedRaceFromServer.track} • ${savedRaceFromServer.date} ${savedRaceFromServer.time}` 
+      });
+
+    } catch (error: any) {
+      toast.error("Failed to sync with server", { description: error.message });
+    } finally {
+      setIsSubmitting(false); 
+    }
+  };
     await saveRace(
       { id: race.id, tournamentId: race.tournamentId },
       { existing: rows, tournamentIds: tournaments.map(t => t.id), editingId: prev?.id }
