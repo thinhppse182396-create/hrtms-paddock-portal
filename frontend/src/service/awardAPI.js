@@ -38,30 +38,31 @@ export async function getRaceAwards(raceId) {
     throw error;
   }
 }
-export async function createAward(awardData) {
+const API_BASE_URL = import.meta.env?.VITE_API_URL || process.env?.REACT_APP_API_URL || 'http://localhost:3000/api';
+export async function saveRaceToServer(raceData, isEdit) {
   try {
-    const response = await fetch(`${API_BASE_URL}/awards`, {
-      method: 'POST',
+    // Tùy biến endpoint nếu cần, ví dụ tạo mới là POST /races, cập nhật có thể là PUT /races/:id
+    // Ở đây dùng chung POST /races theo logic gốc của bạn
+    const url = isEdit ? `${API_BASE_URL}/races/${raceData.id}` : `${API_BASE_URL}/races`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${localStorage.getItem('token')}`, // Mở comment dòng này nếu API cần token
+        // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
       },
-      body: JSON.stringify(awardData),
+      body: JSON.stringify(raceData),
     });
 
-    // Bắt lỗi nếu server trả về mã HTTP không thành công (4xx, 5xx)
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || `Lỗi lưu trữ! Mã lỗi: ${response.status}`);
+      throw new Error(errorData?.message || `Lỗi lưu trữ dữ liệu! Mã HTTP: ${response.status}`);
     }
 
-    // Parse và trả về dữ liệu nếu thành công
-    const result = await response.json();
-    return result;
-
+    return await response.json();
   } catch (error) {
-    console.error("❌ [API Error] Lỗi khi gọi POST /awards:", error.message);
-    // Ném lỗi ra ngoài để UI (file .tsx) có thể bắt và hiển thị thông báo (toast)
+    console.error("❌ [API Error] Lỗi khi đồng bộ Race:", error.message);
     throw error;
   }
 }
