@@ -5,7 +5,6 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { races, refereeAssignments, registrations, getTournament, getHorse, getJockey, type Race } from "@/data/mockData";
 import { Eye, MapPin, Calendar, Flag } from "lucide-react";
 
 export const Route = createFileRoute("/referee/assigned-races")({ component: AssignedRaces });
