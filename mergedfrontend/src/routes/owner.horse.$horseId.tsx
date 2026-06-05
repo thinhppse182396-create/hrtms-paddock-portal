@@ -4,7 +4,6 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { StatCard } from "@/components/common/StatCard";
 import { Button } from "@/components/common/Button";
-import { getHorse, raceResults, violations, getRace, getJockey, races, awardCeremonies } from "@/data/mockData";
 import { FileText, Trophy, Flag, AlertTriangle, ChevronLeft, Download } from "lucide-react";
 
 export const Route = createFileRoute("/owner/horse/$horseId")({ component: HorseDetailPage });
