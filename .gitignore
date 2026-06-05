@@ -1,0 +1,29 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build Folders
+bin/
+obj/
+
+# Rider
+.idea/
+
+# NuGet
+packages/
+*.nupkg
+
+# Visual Studio Code
+.vscode/
+
+# Others
+*.log
+.DS_Store
+node_modules/
+
+# Ignore build outputs
+**/bin/
+**/obj/
