@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { jockeyInvitations, races, horses, registrations, refereeAssignments, getHorse, getOwner, getJockey, getReferee, getTournament } from "@/data/mockData";
 
 export const Route = createFileRoute("/jockey/race-detail")({ component: RaceDetail });
 
