@@ -6,7 +6,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { StatCard } from "@/components/common/StatCard";
 import { Target, Trophy, Coins, Sparkles, Radio } from "lucide-react";
-import { races, raceResults as resultSeed, registrations, getHorse, getRace, getJockey } from "@/data/mockData";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
 import { getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown } from "@/lib/racing";
 import { loadRaceControl } from "@/lib/raceControlStore";
