@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { jockeys, jockeyInvitations as inviteSeed, horses as horseSeed, races, getHorse, getRace, type Horse } from "@/data/mockData";
 import { ArrowDownUp } from "lucide-react";
 
 export const Route = createFileRoute("/owner/jockey-invitations")({ component: JockeyInvitation });
