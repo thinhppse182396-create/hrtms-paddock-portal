@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { refereeReports as initial } from "@/data/mockData";
 
 export const Route = createFileRoute("/referee/reports")({ component: RefereeReportPage });
 
