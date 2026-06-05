@@ -6,7 +6,6 @@ import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { raceResults as seed, races, registrations, getHorse, getJockey, getRace } from "@/data/mockData";
 import { Send } from "lucide-react";
 
 type Result = (typeof seed)[number];
