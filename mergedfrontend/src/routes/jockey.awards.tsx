@@ -3,7 +3,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { raceResults, getRace, getHorse, awardCeremonies } from "@/data/mockData";
 import { Trophy, DollarSign, Medal } from "lucide-react";
 
 export const Route = createFileRoute("/jockey/awards")({ component: JockeyAwards });
