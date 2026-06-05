@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
-import { jockeys, horses, raceResults, getRace } from "@/data/mockData";
 
 export const Route = createFileRoute("/spectator/leaderboard")({ component: SpectatorLeaderboard });
 
