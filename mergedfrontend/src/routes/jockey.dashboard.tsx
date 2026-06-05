@@ -4,7 +4,6 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { jockeyInvitations, races, raceResults, getHorse, getRace } from "@/data/mockData";
 
 export const Route = createFileRoute("/jockey/dashboard")({ component: JockeyDashboard });
 
