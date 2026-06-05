@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { races, horses as horseSeed, jockeys, registrations as regSeed, getTournament, isHorseEligibleForRace, type Horse } from "@/data/mockData";
 import {
   checkJockeyDailyEntries,
   checkHorseRest,
