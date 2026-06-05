@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { tracks as seed, maxLanesForWidth, type Track } from "@/lib/racing";
+// Import file cấu hình axios chung của dự án (điều chỉnh lại đường dẫn nếu cần)
+import api from "@/api"; 
+import { maxLanesForWidth, type Track } from "@/lib/racing";
 import { Info, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/tracks")({ component: TracksPage });
@@ -20,10 +21,34 @@ const fields: Field[] = [
 ];
 
 function TracksPage() {
-  const [data, setData, loading] = usePersistentCollection<Track>("admin:tracks", seed);
+  // 1. Chuyển sang dùng State tiêu chuẩn thay vì usePersistentCollection
+  const [data, setData] = useState<Track[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Track | null>(null);
   const [deleting, setDeleting] = useState<Track | null>(null);
+
+  // 2. Tích hợp API GET /tracks
+  useEffect(() => {
+    const fetchTracks = async () => {
+      try {
+        setLoading(true);
+        // Gọi API lấy danh sách sân từ Backend
+        const response = await api.get('/tracks');
+        
+        // Tùy thuộc vào cấu trúc trả về của Backend, thường dữ liệu sẽ nằm trong response.data
+        setData(response.data); 
+      } catch (error) {
+        console.error("Lỗi khi tải dữ liệu tracks:", error);
+        toast.error("Không thể tải danh sách sân", { description: "Vui lòng kiểm tra lại kết nối mạng hoặc server." });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTracks();
+  }, []); // [] đảm bảo API chỉ gọi 1 lần khi render component
 
   const rows = data.map(t => ({
     ...t,
@@ -31,7 +56,7 @@ function TracksPage() {
     distList: t.distances.map(d => `${d.meters}m`).join(" • "),
   }));
 
-  const upsert = (v: any) => {
+  const upsert = async (v: any) => {
     const meters = String(v.distances)
       .split(",").map((s: string) => Number(s.trim())).filter((n: number) => n > 0);
     const track: Track = {
@@ -39,15 +64,33 @@ function TracksPage() {
       lengthMeters: Number(v.lengthMeters), widthMeters: Number(v.widthMeters),
       distances: meters.map((m: number) => ({ meters: m, chuteLabel: `${m}m Chute` })),
     };
+    
     const isEdit = !!editing;
-    setData(d => isEdit ? d.map(x => x.id === editing!.id ? track : x) : [...d, track]);
-    setCreating(false); setEditing(null);
-    toast.success(isEdit ? "Track updated" : "Track created", { description: `${track.id} • ${maxLanesForWidth(track.widthMeters)} lanes` });
+
+    try {
+      // TODO: Gắn API POST / PUT tại đây giống như task RaceManagement trước đó
+      // if (isEdit) await api.put(`/tracks/${track.id}`, track);
+      // else await api.post('/tracks', track);
+
+      setData(d => isEdit ? d.map(x => x.id === editing!.id ? track : x) : [...d, track]);
+      setCreating(false); setEditing(null);
+      toast.success(isEdit ? "Track updated" : "Track created", { description: `${track.id} • ${maxLanesForWidth(track.widthMeters)} lanes` });
+    } catch (error) {
+      toast.error("Lỗi", { description: "Không thể lưu dữ liệu sân." });
+    }
   };
-  const remove = (t: Track) => {
-    setData(d => d.filter(x => x.id !== t.id));
-    setDeleting(null);
-    toast.success("Track deleted", { description: t.id });
+
+  const remove = async (t: Track) => {
+    try {
+      // TODO: Gắn API DELETE tại đây nếu cần
+      // await api.delete(`/tracks/${t.id}`);
+      
+      setData(d => d.filter(x => x.id !== t.id));
+      setDeleting(null);
+      toast.success("Track deleted", { description: t.id });
+    } catch (error) {
+      toast.error("Lỗi", { description: "Không thể xóa sân này." });
+    }
   };
 
   return (
