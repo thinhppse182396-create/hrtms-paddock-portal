@@ -10,7 +10,6 @@ import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { type AwardCeremony, type Race } from "@/data/mockData"; 
 import { Trophy, Calendar, DollarSign, Medal, Crown, PlayCircle, Plus, Layers, Coins } from "lucide-react";
 import api from '@/api';
 // Thêm import hàm API của bạn vào đây (Hãy đổi lại đường dẫn import đúng thực tế)
