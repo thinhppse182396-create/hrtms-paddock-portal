@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
-import { horses, raceResults, violations } from "@/data/mockData";
 
 export const Route = createFileRoute("/owner/horse-performance")({ component: HorsePerformance });
 
