@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { getRace, registrations, getHorse, getJockey, raceResults, violations } from "@/data/mockData";
 import {
   seedPanels, racePhase, getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown,
 } from "@/lib/racing";
