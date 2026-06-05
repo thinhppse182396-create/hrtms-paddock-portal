@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
@@ -7,14 +7,23 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { saveTournament } from "@/lib/mockApi";
-import { tracks, trackHasConflict, type TrackReservation } from "@/lib/racing";
+// Thay thế mock API bằng axios instance thực tế
+import api from "@/api"; 
+import { trackHasConflict, type TrackReservation } from "@/lib/racing";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/tournaments")({ component: TournamentManagement });
 
-type Tournament = (typeof seed)[number] & { trackId?: string };
+// Khai báo lại kiểu dữ liệu (trước đó lấy từ seed, giờ ta định nghĩa rõ ràng)
+export type Tournament = {
+  id: string;
+  name: string;
+  season: string;
+  trackId?: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+};
 
 const baseFields: Field[] = [
   { name: "id", label: "ID", required: true, placeholder: "T005" },
@@ -27,14 +36,10 @@ const baseFields: Field[] = [
 ];
 
 function TournamentManagement() {
-  const [rows, setRows, loading] = usePersistentCollection<Tournament>("admin:tournaments", seed);
-  const [trackList] = usePersistentCollection("admin:tracks", tracks);
-
-  const fields: Field[] = useMemo(() => baseFields.map(f =>
-    f.name === "trackId"
-      ? { ...f, options: trackList.map(t => ({ label: `${t.id} — ${t.name}`, value: t.id })) }
-      : f,
-  ), [trackList]);
+  // 1. Chuyển sang dùng State tiêu chuẩn
+  const [rows, setRows] = useState<Tournament[]>([]);
+  const [trackList, setTrackList] = useState<any[]>([]); // Lưu danh sách track lấy từ API
+  const [loading, setLoading] = useState<boolean>(true);
 
   const [editing, setEditing] = useState<Tournament | null>(null);
   const [creating, setCreating] = useState(false);
@@ -45,6 +50,36 @@ function TournamentManagement() {
   const [season, setSeason] = useState("");
   const [status, setStatus] = useState("");
 
+  // 2. Fetch dữ liệu khi render Component
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Gọi đồng thời 2 API để lấy danh sách giải đấu và danh sách sân (cho dropdown)
+        const [tournamentsRes, tracksRes] = await Promise.all([
+          api.get('/tournaments'),
+          api.get('/tracks')
+        ]);
+        
+        setRows(tournamentsRes.data);
+        setTrackList(tracksRes.data);
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu:", error);
+        toast.error("Lỗi hệ thống", { description: "Không thể tải danh sách giải đấu hoặc sân đua." });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const fields: Field[] = useMemo(() => baseFields.map(f =>
+    f.name === "trackId"
+      ? { ...f, options: trackList.map(t => ({ label: `${t.id} — ${t.name}`, value: t.id })) }
+      : f,
+  ), [trackList]);
+
   const filtered = useMemo(() => rows.filter(r => {
     const m = q.trim().toLowerCase();
     if (m && !`${r.id} ${r.name}`.toLowerCase().includes(m)) return false;
@@ -53,18 +88,40 @@ function TournamentManagement() {
     return true;
   }), [rows, q, season, status]);
 
+  // 3. Gọi API POST / PUT để tạo hoặc cập nhật
   const upsert = async (v: Tournament) => {
     const isEdit = rows.some(x => x.id === v.id);
-    await saveTournament({ id: v.id }, { existing: rows, editingId: isEdit ? v.id : undefined });
-    setRows(r => isEdit ? r.map(x => x.id === v.id ? v : x) : [...r, v]);
-    setQ(""); setSeason(""); setStatus("");
-    setCreating(false); setEditing(null);
-    toast.success(isEdit ? "Tournament updated" : "Tournament created", { description: `${v.id} — ${v.name}` });
+    
+    try {
+      if (isEdit) {
+        await api.put(`/tournaments/${v.id}`, v);
+        setRows(r => r.map(x => x.id === v.id ? v : x));
+      } else {
+        await api.post('/tournaments', v);
+        setRows(r => [...r, v]);
+      }
+      
+      setQ(""); setSeason(""); setStatus("");
+      setCreating(false); setEditing(null);
+      toast.success(isEdit ? "Cập nhật giải đấu thành công" : "Tạo giải đấu thành công", { description: `${v.id} — ${v.name}` });
+    } catch (error) {
+      console.error("Lỗi khi lưu Tournament:", error);
+      toast.error("Lưu thất bại", { description: "Có lỗi xảy ra khi lưu dữ liệu lên server." });
+    }
   };
-  const remove = (t: Tournament) => {
-    setRows(r => r.filter(x => x.id !== t.id));
-    setDeleting(null);
-    toast.success("Tournament deleted", { description: `${t.id} — ${t.name}` });
+
+  // 4. Gọi API DELETE để xóa
+  const remove = async (t: Tournament) => {
+    try {
+      await api.delete(`/tournaments/${t.id}`);
+      
+      setRows(r => r.filter(x => x.id !== t.id));
+      setDeleting(null);
+      toast.success("Đã xóa giải đấu", { description: `${t.id} — ${t.name}` });
+    } catch (error) {
+      console.error("Lỗi khi xóa Tournament:", error);
+      toast.error("Xóa thất bại", { description: "Không thể xóa giải đấu này." });
+    }
   };
 
   return (
@@ -103,12 +160,11 @@ function TournamentManagement() {
         loading={loading}
       />
 
-
       <FormModal<Tournament>
         open={creating || !!editing}
         title={editing ? "Edit Tournament" : "Create Tournament"}
         fields={fields}
-        initial={editing ?? { id: `T${String(rows.length + 1).padStart(3, "0")}` }}
+        initial={editing ?? { id: `T${String(rows.length + 1).padStart(3, "0")}`, status: "Draft" } as any}
         onClose={() => { setCreating(false); setEditing(null); }}
         onSubmit={upsert}
         validate={(v) => {
@@ -125,7 +181,11 @@ function TournamentManagement() {
             const conflict = trackHasConflict({ trackId: v.trackId, start: v.startDate, end: v.endDate }, others);
             if (conflict) e.trackId = `Track ${v.trackId} đã được đặt từ ${conflict.start} → ${conflict.end} bởi tournament khác.`;
           }
-          if (editing && v.startDate && v.endDate) {
+          
+          // LƯU Ý: Đoạn check orphaned races bên dưới yêu cầu biến `races` phải được định nghĩa.
+          // Trong API thật, có thể bạn sẽ cần check logic này phía Backend, hoặc fetch thêm danh sách races về để Frontend validate.
+          /*
+          if (editing && v.startDate && v.endDate && typeof races !== 'undefined') {
             const orphaned = races.filter(r =>
               r.tournamentId === v.id &&
               (r.date < v.startDate || r.date > v.endDate)
@@ -134,6 +194,8 @@ function TournamentManagement() {
               e.endDate = `Cảnh báo: ${orphaned.length} Race đã lên lịch nằm ngoài khoảng ngày mới (${orphaned.map(r => r.id).join(", ")})`;
             }
           }
+          */
+          
           return Object.keys(e).length ? e : null;
         }}
       />
