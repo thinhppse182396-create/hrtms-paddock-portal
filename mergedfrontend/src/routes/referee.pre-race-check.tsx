@@ -5,10 +5,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Flag, ShieldCheck, AlertTriangle, Play } from "lucide-react";
-import {
-  races, horses, jockeys, registrations,
-  getRace, getHorse, getJockey,
-} from "@/data/mockData";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/referee/pre-race-check")({ component: PreRaceCheck });
