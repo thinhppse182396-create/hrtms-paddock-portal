@@ -8,7 +8,6 @@ import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { violations as seed, getHorse, getJockey, races, horses, jockeys } from "@/data/mockData";
 import { Plus } from "lucide-react";
 
 type Violation = (typeof seed)[number];
