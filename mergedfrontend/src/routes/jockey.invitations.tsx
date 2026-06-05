@@ -5,7 +5,6 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { jockeyInvitations as initial, getHorse, getOwner, getRace } from "@/data/mockData";
 import { Eye, CheckCircle2, XCircle, Calendar, MapPin, Trophy, Weight } from "lucide-react";
 
 export const Route = createFileRoute("/jockey/invitations")({ component: InvitationManagement });
