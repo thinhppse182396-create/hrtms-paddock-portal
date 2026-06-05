@@ -45,11 +45,36 @@ function ResultPublishing() {
   const [q, setQ] = useState("");
   const [raceFilter, setRaceFilter] = useState("");
 
-  const publish = (raceId: string) => {
-    setRows(d => d.map(r => r.raceId === raceId ? { ...r, published: true } : r));
-    setRaceRows(rs => rs.map(r => r.id === raceId ? { ...r, status: "Published" as Race["status"] } : r));
-    toast.success("Results published", { description: raceId });
+  const publish = async (raceId: string) => {
+    const toastId = toast.loading("Publishing results...", { description: raceId });
+
+    try {
+      const response = await fetch("/api/races/published", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ raceId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Lỗi Server: ${response.statusText}`);
+      }
+
+      setRows(d => d.map(r => r.raceId === raceId ? { ...r, published: true } : r));
+      setRaceRows(rs => rs.map(r => r.id === raceId ? { ...r, status: "Published" as Race["status"] } : r));
+      
+      toast.success("Results published", { id: toastId, description: raceId });
+      
+    } catch (error) {
+      console.error("Failed to publish:", error);
+      toast.error("Failed to publish results", { 
+        id: toastId, 
+        description: error instanceof Error ? error.message : "Vui lòng thử lại sau" 
+      });
+    }
   };
+
   const upsert = (v: any) => {
     const result: Result = {
       raceId: v.raceId, horseId: v.horseId, jockeyId: v.jockeyId,
@@ -63,6 +88,7 @@ function ResultPublishing() {
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Result updated" : "Result added", { description: `${result.raceId} • rank #${result.rank}` });
   };
+  
   const remove = (r: Result) => {
     setRows(rs => rs.filter(x => x !== r));
     setDeleting(null);
