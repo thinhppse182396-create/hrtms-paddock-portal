@@ -8,7 +8,6 @@ import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { referees as seedRefs, races, refereeAssignments as seedA, getReferee } from "@/data/mockData";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/referees")({ component: RefereeAssignment });
