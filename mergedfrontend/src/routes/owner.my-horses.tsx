@@ -9,6 +9,7 @@ import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormMo
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
 import { horses as seed, type Horse } from "@/data/mockData";
 import { Plus } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 
 export const Route = createFileRoute("/owner/my-horses")({ component: MyHorses });
 
@@ -29,6 +30,7 @@ function MyHorses() {
   const [rows, setRows, loading] = usePersistentCollection<Horse>("owner:horses", seed);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Horse | null>(null);
+const [editing, setEditing] = useState<Horse | null>(null);
 
   const myHorses = useMemo(() => rows.filter(h => h.ownerId === OWNER_ID), [rows]);
 
@@ -62,6 +64,22 @@ function MyHorses() {
     setCreating(false);
     toast.success("Horse added", { description: `${horse.name} (${horse.id})` });
   };
+const updateHorse = (v: any) => {
+  if (!editing) return;
+  setRows(rs => rs.map(h => h.id === editing.id ? {
+    ...h,
+    name: v.name,
+    breed: v.breed,
+    age: Number(v.age),
+    weight: Number(v.weight),
+    color: v.color || h.color,
+    trainer: v.trainer || h.trainer,
+    healthCertExpiry: v.healthCertExpiry,
+    status: v.status,
+  } : h));
+  setEditing(null);
+  toast.success("Horse updated", { description: v.name });
+};
 
   const remove = (h: Horse) => {
     setRows(rs => rs.filter(x => x.id !== h.id));
@@ -86,14 +104,25 @@ function MyHorses() {
           { key: "docs", header: "Documents", render: r => `${r.documents.length} papers` },
           { key: "healthCertExpiry", header: "Health Cert Expiry" },
           { key: "status", header: "Status", render: r => <StatusBadge status={r.status} /> },
-          { key: "actions", header: "Actions", render: r => (
-            <div className="flex gap-2">
-              <Link to="/owner/horse/$horseId" params={{ horseId: r.id }}>
-                <Button variant="secondary">View Profile</Button>
-              </Link>
-              <Button variant="danger" onClick={() => setDeleting(r)}>Remove</Button>
-            </div>
-          )},
+          {
+  key: "actions",
+  header: "Actions",
+  render: (r: Horse) => (
+    <div className="flex gap-2">
+      <Link to="/owner/horse/$horseId" params={{ horseId: r.id }}>
+        <Button variant="primary">
+          <Eye className="h-4 w-4" /> View Profile
+        </Button>
+      </Link>
+      <Button variant="ghost" onClick={() => setEditing(r)}>
+        <Pencil className="h-4 w-4" /> Edit
+      </Button>
+      <Button variant="danger" onClick={() => setDeleting(r)}>
+        <Trash2 className="h-4 w-4" /> Remove
+      </Button>
+    </div>
+  ),
+},
         ]}
         rows={myHorses}
         loading={loading}
@@ -107,6 +136,20 @@ function MyHorses() {
         initial={{ status: "Eligible" } as any}
         onClose={() => setCreating(false)}
         onSubmit={addHorse}
+        validate={(v: any) => {
+          const e: Record<string, string> = {};
+          if (Number(v.age) < 2 || Number(v.age) > 20) e.age = "Age must be 2–20";
+          if (Number(v.weight) < 400 || Number(v.weight) > 600) e.weight = "Weight must be 400–600kg";
+          return Object.keys(e).length ? e : null;
+        }}
+      />
+      <FormModal
+        open={!!editing}
+        title="Edit Horse"
+        fields={fields}
+        initial={editing ?? undefined}
+        onClose={() => setEditing(null)}
+        onSubmit={updateHorse}
         validate={(v: any) => {
           const e: Record<string, string> = {};
           if (Number(v.age) < 2 || Number(v.age) > 20) e.age = "Age must be 2–20";
