@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { getRace, getTournament, referees, registrations, getHorse, getJockey } from "@/data/mockData";
 import {
   seedRounds, seedPanels, validateRoundSchedule, validatePanel, panelSigned,
   getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown,
