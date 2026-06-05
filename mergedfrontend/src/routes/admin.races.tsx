@@ -8,7 +8,6 @@ import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { races as seed, tournaments, getTournament, registrations, refereeAssignments, getJockey, getReferee, type Race } from "@/data/mockData";
 import { auditLog } from "@/lib/auditLog";
 import { saveRace, canTransitionRace, transitionRace, type RaceState } from "@/lib/mockApi";
 import { Plus, AlertTriangle, Play } from "lucide-react";
