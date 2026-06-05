@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { awardCeremonies, getRace, raceResults, getHorse, getJockey } from "@/data/mockData";
 import { Crown, Medal } from "lucide-react";
 
 export const Route = createFileRoute("/spectator/awards")({ component: SpectatorAwards });
