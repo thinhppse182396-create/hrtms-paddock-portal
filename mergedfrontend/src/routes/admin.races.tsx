@@ -9,7 +9,10 @@ import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
 import { auditLog } from "@/lib/auditLog";
-import { saveRace, canTransitionRace, transitionRace, type RaceState } from "@/lib/mockApi";
+// Xóa saveRace khỏi mockApi
+import { canTransitionRace, transitionRace, type RaceState } from "@/lib/mockApi";
+// Import service gọi API thật
+import { saveRaceToServer } from '@/service/awardAPI';
 import { Plus, AlertTriangle, Play } from "lucide-react";
 
 export const Route = createFileRoute("/admin/races")({ component: RaceManagement });
@@ -120,16 +123,27 @@ function RaceManagement() {
       toast.error("Cannot save race", { description: c });
       return;
     }
-    await saveRace(
-      { id: race.id, tournamentId: race.tournamentId },
-      { existing: rows, tournamentIds: tournaments.map(t => t.id), editingId: prev?.id }
-    );
-    setRows(r => prev ? r.map(x => x.id === race.id ? race : x) : [...r, race]);
-    auditLog.add({ actor: "System Admin", action: prev ? "EDIT_RACE" : "CREATE_RACE", target: race.id, details: `${race.track} • ${race.date} ${race.time}` });
-    setQ(""); setTFilter(""); setSFilter("");
-    setCreating(false); setEditing(null); setConflict(null);
-    toast.success(prev ? "Race updated" : "Race created", { description: `${race.id} • ${race.track} • ${race.date} ${race.time}` });
+
+    try {
+      // Xác định xem đây là chỉnh sửa (Edit) hay tạo mới (Create)
+      const isEdit = !!prev; 
+
+      // Gọi API thật (POST hoặc PUT)
+      await saveRaceToServer(race as any, isEdit);
+
+      // Cập nhật state UI sau khi gọi API thành công
+      setRows(r => prev ? r.map(x => x.id === race.id ? race : x) : [...r, race]);
+      auditLog.add({ actor: "System Admin", action: prev ? "EDIT_RACE" : "CREATE_RACE", target: race.id, details: `${race.track} • ${race.date} ${race.time}` });
+      setQ(""); setTFilter(""); setSFilter("");
+      setCreating(false); setEditing(null); setConflict(null);
+      toast.success(prev ? "Cập nhật Race thành công" : "Tạo Race thành công", { description: `${race.id} • ${race.track} • ${race.date} ${race.time}` });
+
+    } catch (error) {
+      console.error("Lỗi khi gửi dữ liệu lên server:", error);
+      toast.error("Lỗi hệ thống", { description: "Không thể lưu dữ liệu lên Server, vui lòng thử lại sau!" });
+    }
   };
+
   const remove = (id: string) => {
     setRows(r => r.filter(x => x.id !== id));
     auditLog.add({ actor: "System Admin", action: "DELETE_RACE", target: id });
@@ -372,15 +386,14 @@ function RaceManagement() {
       )}
 
       <ConfirmDialog
-  open={!!confirmStarting}
-  title="Bắt đầu Race?"
-  message={`Chuyển race ${confirmStarting?.id} (${confirmStarting?.track} • ${confirmStarting?.date} ${confirmStarting?.time}) sang trạng thái Ongoing?`}
-  confirmLabel="Confirm"
-  confirmVariant="primary"
-  onClose={() => setConfirmStarting(null)}
-  onConfirm={() => confirmStarting && startRace(confirmStarting)}
-/>
+        open={!!confirmStarting}
+        title="Bắt đầu Race?"
+        message={`Chuyển race ${confirmStarting?.id} (${confirmStarting?.track} • ${confirmStarting?.date} ${confirmStarting?.time}) sang trạng thái Ongoing?`}
+        confirmLabel="Confirm"
+        confirmVariant="primary"
+        onClose={() => setConfirmStarting(null)}
+        onConfirm={() => confirmStarting && startRace(confirmStarting)}
+      />
     </div>
   );
-}// Note: Real API integration available via:
-// import { saveRaceToServer } from '@/service/awardAPI';
+}
