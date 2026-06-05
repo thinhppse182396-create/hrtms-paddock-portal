@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { registrations as regSeed, raceResults as resultSeed, getHorse, getJockey, getRace } from "@/data/mockData";
 
 export const Route = createFileRoute("/owner/my-registrations")({ component: MyRegistrations });
 
