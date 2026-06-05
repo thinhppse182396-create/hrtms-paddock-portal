@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { getRace, registrations, getHorse, getJockey, raceResults, violations } from "@/data/mockData";
+import { getRace, registrations, getHorse, getJockey, raceResults, violations } from "@/data/databaseData";
 import {
   seedPanels, racePhase, getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown,
 } from "@/lib/racing";
 import { loadRaceControl, type RaceControlState } from "@/lib/raceControlStore";
-import { ArrowLeft, Timer, TrendingUp, ShieldAlert, Trophy, FlaskConical } from "lucide-react";
+import { ArrowLeft, Timer, ShieldAlert, Trophy, FlaskConical } from "lucide-react";
 
 export const Route = createFileRoute("/spectator/race/$raceId")({ component: SpectatorRaceDetail });
 
@@ -17,27 +17,22 @@ function SpectatorRaceDetail() {
   const race = getRace(raceId);
   const panel = seedPanels.find(p => p.raceId === raceId);
 
-  // Live race-control state: re-read on storage events + custom event from Admin page.
-  const [control, setControl] = useState<RaceControlState | null>(() => loadRaceControl(raceId));
+  // Live race-control state comes from the backend and refreshes while this page is open.
+  const [control, setControl] = useState<RaceControlState | null>(null);
   useEffect(() => {
-    const refresh = () => setControl(loadRaceControl(raceId));
-    const onStorage = (e: StorageEvent) => { if (e.key === `raceControl:${raceId}`) refresh(); };
-    const onCustom = (e: Event) => { if ((e as CustomEvent).detail === raceId) refresh(); };
-    window.addEventListener("storage", onStorage);
+    const refresh = () => void loadRaceControl(raceId).then(setControl);
+    const onCustom = (event: Event) => { if ((event as CustomEvent).detail === raceId) refresh(); };
+    refresh();
+    const timer = window.setInterval(refresh, 5000);
     window.addEventListener("raceControl:update", onCustom);
-    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("raceControl:update", onCustom); };
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("raceControl:update", onCustom);
+    };
   }, [raceId]);
 
   const phase = control?.phase ?? (race ? racePhase(race, panel) : "PreRace");
   const entries = registrations.filter(r => r.raceId === raceId && r.status === "Approved");
-
-  // mock live odds tick during PreRace
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (phase !== "PreRace") return;
-    const id = setInterval(() => setTick(t => t + 1), 3000);
-    return () => clearInterval(id);
-  }, [phase]);
 
   if (!race) {
     return (
@@ -50,8 +45,8 @@ function SpectatorRaceDetail() {
 
   const commitment = getCommitment(raceId);
   const guaranteed = guaranteedMinimum(commitment, entries.length);
-  const mockHandle = entries.length * 25000 + tick * 1500;
-  const pool = actualPrizePool(commitment, entries.length, mockHandle);
+  const totalHandle = 0;
+  const pool = actualPrizePool(commitment, entries.length, totalHandle);
 
   // Prefer simulated results from Admin race-control; fall back to seeded results.
   const simResults = control?.simResult?.results ?? null;
@@ -90,33 +85,16 @@ function SpectatorRaceDetail() {
             <RaceCard entries={entries} />
           </Card>
           <div className="grid md:grid-cols-3 gap-3">
-            <Stat label="Live total handle (mock)" value={`$${mockHandle.toLocaleString()}`} accent />
+            <Stat label="Recorded total handle" value={`$${totalHandle.toLocaleString()}`} accent />
             <Stat label="Guaranteed minimum pool" value={`$${guaranteed.toLocaleString()}`} />
             <Stat label="Projected pool" value={`$${pool.toLocaleString()}`} />
           </div>
-          <Card title="Live toteboard (pari-mutuel)" icon={<TrendingUp className="h-4 w-4" />}>
-            <table className="w-full text-sm">
-              <thead><tr className="text-xs uppercase text-muted-foreground"><th className="text-left py-2">Horse</th><th className="text-left">Jockey</th><th className="text-right">Mock odds</th></tr></thead>
-              <tbody>
-                {entries.map((e, i) => {
-                  const odds = (2.5 + (i + 1) * 0.8 + (tick % 5) * 0.1).toFixed(2);
-                  return (
-                    <tr key={e.id} className="border-t border-border">
-                      <td className="py-2 font-medium">{getHorse(e.horseId)?.name}</td>
-                      <td>{getJockey(e.jockeyId)?.name}</td>
-                      <td className="text-right text-primary font-mono">{odds}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Card>
         </section>
       )}
 
       {phase === "InProgress" && (
         <Card title="Race in progress" icon={<Timer className="h-4 w-4" />}>
-          <p className="text-sm">Status: <b>In Progress</b> — final odds đã khóa, betting pool đã chốt ở <b>${mockHandle.toLocaleString()}</b>.</p>
+          <p className="text-sm">Status: <b>In Progress</b> — recorded betting pool: <b>${totalHandle.toLocaleString()}</b>.</p>
           {control?.simResult ? (
             <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
               <div className="font-semibold text-primary flex items-center gap-1.5 mb-1"><FlaskConical className="h-3.5 w-3.5" /> Live trajectory feed</div>

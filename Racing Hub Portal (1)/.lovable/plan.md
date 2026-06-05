@@ -1,4 +1,4 @@
-# Kế hoạch build HRTMS theo Research Report
+<!-- # Kế hoạch build HRTMS theo Research Report
 
 Báo cáo định nghĩa lại domain model khá nhiều so với app hiện tại. Mình sẽ refactor mock data + UI để khớp, vẫn giữ frontend-only (localStorage, không backend).
 
@@ -84,4 +84,4 @@ Out: Track Manager CRUD, document upload, email/license verification, Trainer ro
 
 ## Lưu ý
 
-App khá lớn → mình sẽ ship theo thứ tự ưu tiên: (1) domain + tracks/tournament/race/round, (2) prize pool + review workflow, (3) spectator 4-phase + simulation, (4) constraints + pending approvals. Bạn duyệt plan thì mình bắt đầu từ (1).
+App khá lớn → mình sẽ ship theo thứ tự ưu tiên: (1) domain + tracks/tournament/race/round, (2) prize pool + review workflow, (3) spectator 4-phase + simulation, (4) constraints + pending approvals. Bạn duyệt plan thì mình bắt đầu từ (1). -->

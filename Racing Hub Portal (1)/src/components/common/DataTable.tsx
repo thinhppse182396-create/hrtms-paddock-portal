@@ -6,7 +6,6 @@ export interface Column<T> {
   header: string;
   render?: (row: T) => ReactNode;
 }
-
 export function DataTable<T extends Record<string, any>>({ columns, rows, empty = "No data", loading }: { columns: Column<T>[]; rows: T[]; empty?: string; loading?: boolean }) {
   if (loading) {
     return <DataTableSkeleton columns={columns.length} rows={5} />;
@@ -43,4 +42,3 @@ export function DataTable<T extends Record<string, any>>({ columns, rows, empty 
     </div>
   );
 }
-

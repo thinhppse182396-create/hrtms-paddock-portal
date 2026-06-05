@@ -4,13 +4,14 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { getRace, getTournament, referees, registrations, getHorse, getJockey } from "@/data/mockData";
+import { getRace, getTournament, referees, registrations, getHorse, getJockey } from "@/data/databaseData";
 import {
   seedRounds, seedPanels, validateRoundSchedule, validatePanel, panelSigned,
   getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown,
   simulateRace, type RaceRound, type RefereePanel,
 } from "@/lib/racing";
 import { loadRaceControl, saveRaceControl, type ControlPhase } from "@/lib/raceControlStore";
+import { deleteRound, syncRefereePanel, syncRound } from "@/lib/backendApi";
 import { ArrowLeft, Play, FlaskConical, CheckCircle2, AlertTriangle, Radio } from "lucide-react";
 
 export const Route = createFileRoute("/admin/race-control/$raceId")({ component: RaceControlPage });
@@ -18,8 +19,6 @@ export const Route = createFileRoute("/admin/race-control/$raceId")({ component:
 function RaceControlPage() {
   const { raceId } = useParams({ from: "/admin/race-control/$raceId" });
   const race = getRace(raceId);
-  const persisted = loadRaceControl(raceId);
-
   const [rounds, setRounds] = useState<RaceRound[]>(seedRounds.filter(r => r.raceId === raceId));
   const [panel, setPanel] = useState<RefereePanel>(
     seedPanels.find(p => p.raceId === raceId) ?? {
@@ -30,9 +29,24 @@ function RaceControlPage() {
       ],
     },
   );
-  const [simResult, setSimResult] = useState<ReturnType<typeof simulateRace> | null>(persisted?.simResult ?? null);
-  const [reviewStep, setReviewStep] = useState(persisted?.reviewStep ?? 0);
-  const [phase, setPhase] = useState<ControlPhase>(persisted?.phase ?? "PreRace");
+  const [simResult, setSimResult] = useState<ReturnType<typeof simulateRace> | null>(null);
+  const [reviewStep, setReviewStep] = useState(0);
+  const [phase, setPhase] = useState<ControlPhase>("PreRace");
+  const [controlLoaded, setControlLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadRaceControl(raceId).then(persisted => {
+      if (!active || !persisted) return;
+      setSimResult(persisted.simResult ?? null);
+      setReviewStep(persisted.reviewStep);
+      setPhase(persisted.phase);
+      if (persisted.panel) setPanel(persisted.panel);
+    }).finally(() => {
+      if (active) setControlLoaded(true);
+    });
+    return () => { active = false; };
+  }, [raceId]);
 
   const confirmedRegs = useMemo(
     () => registrations.filter(rg => rg.raceId === raceId && rg.status === "Approved"),
@@ -40,8 +54,8 @@ function RaceControlPage() {
   );
   const commitment = getCommitment(raceId);
   const guaranteed = guaranteedMinimum(commitment, confirmedRegs.length);
-  const mockHandle = confirmedRegs.length * 25000; // demo handle
-  const pool = actualPrizePool(commitment, confirmedRegs.length, mockHandle);
+  const totalHandle = 0;
+  const pool = actualPrizePool(commitment, confirmedRegs.length, totalHandle);
   const breakdown = prizeBreakdown(pool, confirmedRegs.length);
 
   if (!race) {
@@ -53,26 +67,76 @@ function RaceControlPage() {
     );
   }
 
-  const addRound = () => {
-    const id = `RD-${raceId}-${rounds.length + 1}`;
-    setRounds([...rounds, { id, raceId, type: "Heat", startTime: "12:00", status: "Scheduled" }]);
+  const addRound = async () => {
+    const latest = [...rounds].sort((a, b) => b.startTime.localeCompare(a.startTime))[0];
+    const startTime = latest ? addMinutes(latest.startTime, 40) : race.time;
+    try {
+      const saved = await syncRound({ raceId, type: "Heat", startTime }, race.date);
+      setRounds(current => [...current, {
+        id: String(saved.roundId),
+        backendId: saved.roundId,
+        raceId,
+        type: "Heat",
+        startTime,
+        status: "Scheduled",
+      }]);
+      toast.success("Round added", { description: `${raceId} at ${startTime}` });
+    } catch (error: any) {
+      toast.error("Cannot add round", { description: error?.message });
+    }
   };
   const updateRound = (i: number, patch: Partial<RaceRound>) => {
     setRounds(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r));
   };
-  const removeRound = (i: number) => setRounds(rs => rs.filter((_, idx) => idx !== i));
+  const saveRound = async (i: number) => {
+    const round = rounds[i];
+    try {
+      const saved = await syncRound(round, race.date);
+      setRounds(current => current.map((item, index) => index === i ? {
+        ...item,
+        id: String(saved.roundId),
+        backendId: saved.roundId,
+      } : item));
+      toast.success("Round saved", { description: `${raceId} at ${round.startTime}` });
+    } catch (error: any) {
+      toast.error("Cannot save round", { description: error?.message });
+    }
+  };
+  const removeRound = async (i: number) => {
+    const round = rounds[i];
+    try {
+      if (round.backendId) await deleteRound(round.backendId);
+      setRounds(current => current.filter((_, index) => index !== i));
+      toast.success("Round removed", { description: round.id });
+    } catch (error: any) {
+      toast.error("Cannot remove round", { description: error?.message });
+    }
+  };
   const roundErr = validateRoundSchedule(rounds);
 
   const setMember = (i: number, refereeId: string) => {
-    setPanel(p => ({ ...p, members: p.members.map((m, idx) => idx === i ? { ...m, refereeId } : m) }));
+    setPanel(p => ({ ...p, members: p.members.map((m, idx) => ({ ...m, refereeId: idx === i ? refereeId : m.refereeId, signed: false, signedAt: undefined })) }));
   };
   const setLead = (i: number) => {
-    setPanel(p => ({ ...p, members: p.members.map((m, idx) => ({ ...m, role: idx === i ? "Lead" : "Member" })) }));
+    setPanel(p => ({ ...p, members: p.members.map((m, idx) => ({ ...m, role: idx === i ? "Lead" : "Member", signed: false, signedAt: undefined })) }));
   };
   const sign = (i: number) => {
     setPanel(p => ({ ...p, members: p.members.map((m, idx) => idx === i ? { ...m, signed: true, signedAt: new Date().toISOString() } : m) }));
   };
   const panelErr = validatePanel(panel);
+  const savePanel = async () => {
+    if (panelErr) {
+      toast.error("Cannot save panel", { description: panelErr });
+      return;
+    }
+    try {
+      await syncRefereePanel(panel);
+      setPanel(current => ({ ...current, backendId: current.backendId ?? `RP-${raceId}` }));
+      toast.success("Referee panel saved", { description: raceId });
+    } catch (error: any) {
+      toast.error("Cannot save panel", { description: error?.message });
+    }
+  };
 
   const runSimulation = () => {
     if (confirmedRegs.length === 0) { toast.error("Chưa có registration approved"); return; }
@@ -97,21 +161,22 @@ function RaceControlPage() {
   // Auto-derive phase from progress and persist whenever anything changes.
   const signedCount = panel.members.filter(m => m.signed).length;
   useEffect(() => {
+    if (!controlLoaded) return;
     let derived: ControlPhase = phase;
     if (phase === "PreRace" && simResult) derived = "InProgress";
     if ((derived === "InProgress") && simResult) derived = "Provisional";
     if (derived === "Provisional" && reviewStep === reviewSteps.length && panelSigned(panel)) derived = "Official";
     if (derived !== phase) setPhase(derived);
-    saveRaceControl({
+    void saveRaceControl({
       raceId, phase: derived, reviewStep, panelSignedCount: signedCount,
-      simResult: simResult ?? undefined, updatedAt: "",
+      panel, simResult: simResult ?? undefined, updatedAt: "",
     });
-  }, [simResult, reviewStep, signedCount, phase, raceId]);
+  }, [simResult, reviewStep, signedCount, panel, phase, raceId, controlLoaded]);
 
   const advancePhase = (next: ControlPhase) => { setPhase(next); toast.success(`Phase → ${next}`); };
   const resetControl = () => {
     setSimResult(null); setReviewStep(0); setPhase("PreRace");
-    saveRaceControl({ raceId, phase: "PreRace", reviewStep: 0, panelSignedCount: signedCount, updatedAt: "" });
+    void saveRaceControl({ raceId, phase: "PreRace", reviewStep: 0, panelSignedCount: signedCount, panel, updatedAt: "" });
     toast.message("Đã reset race control về Pre-Race");
   };
 
@@ -165,7 +230,10 @@ function RaceControlPage() {
               <input type="time" className="px-2 py-1.5 border border-input rounded bg-background" value={r.startTime} onChange={e => updateRound(i, { startTime: e.target.value })} />
               <StatusBadge status={r.status} />
               <span className="text-xs text-muted-foreground">{r.id}</span>
-              <Button variant="danger" onClick={() => removeRound(i)}>Remove</Button>
+              <div className="flex gap-1">
+                <Button variant="ghost" onClick={() => void saveRound(i)}>Save</Button>
+                <Button variant="danger" onClick={() => void removeRound(i)}>Remove</Button>
+              </div>
             </div>
           ))}
           {rounds.length === 0 && <p className="text-xs text-muted-foreground">No rounds yet.</p>}
@@ -199,6 +267,7 @@ function RaceControlPage() {
           ))}
         </div>
         {panelErr && <div className="mt-2 text-sm text-danger flex gap-2 items-center"><AlertTriangle className="h-4 w-4" /> {panelErr}</div>}
+        <Button className="mt-3" onClick={() => void savePanel()} disabled={!!panelErr}>Save panel</Button>
         <p className="text-xs text-muted-foreground mt-2">RefereeReport được tính là <b>signed</b> khi cả 3 thành viên co-sign.</p>
       </section>
 
@@ -210,8 +279,8 @@ function RaceControlPage() {
           <Stat label="Sponsorship"      value={`$${commitment.sponsorshipAmount.toLocaleString()}`} />
           <Stat label={`Entry fee × ${confirmedRegs.length}`} value={`$${(commitment.entryFeePerHorse * confirmedRegs.length).toLocaleString()}`} />
           <Stat label="Guaranteed min"  value={`$${guaranteed.toLocaleString()}`} highlight />
-          <Stat label="Mock total handle" value={`$${mockHandle.toLocaleString()}`} />
-          <Stat label="Betting contribution (20%×40%)" value={`$${(mockHandle * 0.2 * 0.4).toLocaleString()}`} />
+          <Stat label="Recorded total handle" value={`$${totalHandle.toLocaleString()}`} />
+          <Stat label="Betting contribution (20%×40%)" value={`$${(totalHandle * 0.2 * 0.4).toLocaleString()}`} />
           <Stat label="ACTUAL PRIZE POOL" value={`$${pool.toLocaleString()}`} highlight />
           <Stat label="Confirmed horses" value={String(confirmedRegs.length)} />
         </div>
@@ -302,4 +371,10 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
       <div className={`mt-1 font-semibold ${highlight ? "text-primary text-lg" : "text-foreground"}`}>{value}</div>
     </div>
   );
+}
+
+function addMinutes(time: string, minutes: number) {
+  const [hours, currentMinutes] = time.split(":").map(Number);
+  const total = (hours || 0) * 60 + (currentMinutes || 0) + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }

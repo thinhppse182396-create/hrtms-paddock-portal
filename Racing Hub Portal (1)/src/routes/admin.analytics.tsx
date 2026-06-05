@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from "recharts";
-import { races, horses, jockeys, registrations, raceResults, tournaments, getHorse, getJockey } from "@/data/mockData";
+import { races, horses, jockeys, registrations, raceResults, tournaments, getHorse, getJockey } from "@/data/databaseData";
 
 export const Route = createFileRoute("/admin/analytics")({ component: AnalyticsDashboard, ssr: false });
 

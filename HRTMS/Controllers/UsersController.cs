@@ -1,128 +1,60 @@
-using HRTMS.Data;
-using HRTMS.Models.Roles;
-using Microsoft.AspNetCore.Identity;
+using HRTMS.Models.DTOs;
+using HRTMS.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("api/users")]
-public class UsersController : ControllerBase
+public class UsersController : ApiControllerBase
 {
-    private const string AccountEntityName = "Account";
-    private const string ActiveStatusCode = "ACTIVE";
+    private readonly IUserService _userService;
 
-    private readonly ApplicationDbContext _context;
-    private readonly IPasswordHasher<Accounts> _passwordHasher;
-
-    public UsersController(
-        ApplicationDbContext context,
-        IPasswordHasher<Accounts> passwordHasher)
+    public UsersController(IUserService userService)
     {
-        _context = context;
-        _passwordHasher = passwordHasher;
+        _userService = userService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsers()
+    public async Task<ActionResult<IReadOnlyList<UserResponse>>> GetUsers()
     {
-        var users = await _context.Accounts
-            .AsNoTracking()
-            .OrderBy(account => account.Username)
-            .Select(account => new UserResponse(
-                account.AccountId,
-                account.Username,
-                account.FullName,
-                account.RoleId,
-                account.Role!.RoleCode,
-                account.Role.RoleName,
-                account.StatusId,
-                account.Status!.StatusCode))
-            .ToListAsync();
-
-        return Ok(users);
+        return Ok(await _userService.GetUsersAsync());
     }
 
     [HttpPost]
     public async Task<ActionResult<UserResponse>> CreateUser(CreateUserRequest request)
     {
-        var username = request.Username.Trim();
-        var roleCode = request.RoleCode.Trim().ToUpperInvariant();
-
-        if (await _context.Accounts.AnyAsync(account => account.Username == username))
-        {
-            return Conflict(new { message = "Username already exists." });
-        }
-
-        var role = await _context.Roles.SingleOrDefaultAsync(item =>
-            item.RoleCode == roleCode &&
-            item.IsActive);
-
-        if (role is null)
-        {
-            return BadRequest(new { message = "Role does not exist or is inactive." });
-        }
-
-        var activeStatus = await _context.Statuses.SingleOrDefaultAsync(status =>
-            status.EntityName == AccountEntityName &&
-            status.StatusCode == ActiveStatusCode &&
-            status.IsActive);
-
-        if (activeStatus is null)
-        {
-            return Problem("The active account status is not configured.");
-        }
-
-        var account = new Accounts
-        {
-            AccountId = Guid.NewGuid().ToString(),
-            Username = username,
-            FullName = request.FullName.Trim(),
-            RoleId = role.RoleId,
-            StatusId = activeStatus.StatusId
-        };
-
-        account.Password = _passwordHasher.HashPassword(account, request.Password);
-
-        _context.Accounts.Add(account);
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            return Conflict(new { message = "Username already exists." });
-        }
-
-        var response = new UserResponse(
-            account.AccountId,
-            account.Username,
-            account.FullName,
-            account.RoleId,
-            role.RoleCode,
-            role.RoleName,
-            account.StatusId,
-            activeStatus.StatusCode);
-
-        return Created("/api/users", response);
+        var result = await _userService.CreateUserAsync(request);
+        return result.Status == ServiceResultStatus.Created
+            ? Created("/api/users", result.Value)
+            : ToActionResult(result);
     }
 
-    public record CreateUserRequest(
-        [Required, StringLength(50)] string Username,
-        [Required, MinLength(6)] string Password,
-        [Required, StringLength(100)] string FullName,
-        [Required] string RoleCode);
+    [HttpPut("{id}")]
+    public async Task<ActionResult<UserResponse>> UpdateUser(string id, UpdateUserRequest request)
+    {
+        var result = await _userService.UpdateUserAsync(id, request);
+        return ToActionResult(result);
+    }
 
-    public record UserResponse(
-        string AccountId,
-        string Username,
-        string FullName,
-        int RoleId,
-        string RoleCode,
-        string RoleName,
-        int StatusId,
-        string StatusCode);
+    [HttpPatch("{id}/status")]
+    public async Task<ActionResult<UserResponse>> UpdateUserStatus(string id, UpdateUserStatusRequest request)
+    {
+        var result = await _userService.UpdateUserStatusAsync(id, request);
+        return ToActionResult(result);
+    }
+
+    [HttpPatch("{id}/password")]
+    public async Task<IActionResult> ResetUserPassword(string id, ResetUserPasswordRequest request)
+    {
+        var result = await _userService.ResetUserPasswordAsync(id, request);
+        return ToNoContentResult(result);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(string id)
+    {
+        var result = await _userService.DeleteUserAsync(id);
+        return ToNoContentResult(result);
+    }
 }

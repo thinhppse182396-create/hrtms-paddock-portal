@@ -7,10 +7,13 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { registrations as seed, getHorse, getJockey, getOwner, horses, jockeys, owners, races } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { registrations as seed, getHorse, getJockey, getOwner, horses, jockeys, owners, races } from "@/data/databaseData";
 import { Plus } from "lucide-react";
-import { isBackendEnabled, syncRegistration, updateRegistrationStatus } from "@/lib/backendApi";
+import { deleteRegistration, isBackendEnabled, syncRegistration, updateRegistrationStatus } from "@/lib/backendApi";
+import { isHorseEligibleForRace } from "@/data/databaseData";
+import { checkRegistrationDeadline } from "@/lib/racing";
+import { toLocalDateString } from "@/lib/dateTime";
 
 export const Route = createFileRoute("/admin/registrations")({ component: RegistrationManagement });
 
@@ -28,7 +31,7 @@ const fields: Field[] = [
 ];
 
 function RegistrationManagement() {
-  const [rows, setRows, loading] = usePersistentCollection<Reg>("admin:registrations", seed as Reg[]);
+  const [rows, setRows, loading] = useDatabaseCollection<Reg>("admin:registrations", seed as Reg[]);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Reg | null>(null);
@@ -75,7 +78,8 @@ function RegistrationManagement() {
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Registration updated" : "Registration created", { description: `${v.id} • ${v.raceId}` });
   };
-  const remove = (r: Reg) => {
+  const remove = async (r: Reg) => {
+    await deleteRegistration(r.id);
     setRows(d => d.filter(x => x.id !== r.id));
     setDeleting(null);
     toast.success("Registration deleted", { description: r.id });
@@ -124,7 +128,7 @@ function RegistrationManagement() {
         open={creating || !!editing}
         title={editing ? "Edit Registration" : "New Registration"}
         fields={fields}
-        initial={editing ?? { id: `RG${String(rows.length + 1).padStart(3, "0")}`, status: "Pending", submittedAt: new Date().toISOString().slice(0, 10) } as any}
+        initial={editing ?? { id: isBackendEnabled() ? `RG${Date.now()}` : `RG${String(rows.length + 1).padStart(3, "0")}`, status: "Pending", submittedAt: toLocalDateString() } as any}
         onClose={() => { setCreating(false); setEditing(null); }}
         onSubmit={upsert}
         validate={(v) => {
@@ -132,6 +136,17 @@ function RegistrationManagement() {
           if (!editing && rows.some(x => x.id === v.id)) e.id = "ID already exists";
           const dup = rows.find(x => x.raceId === v.raceId && x.horseId === v.horseId && x.id !== v.id && x.status !== "Rejected" && x.status !== "Cancelled");
           if (dup) e._form = `Horse already registered in ${v.raceId} (${dup.id})`;
+          const selectedRace = races.find(race => race.id === v.raceId);
+          if (selectedRace && !editing) {
+            if (selectedRace.status !== "Scheduled") e.raceId = "Registration is only available for scheduled races";
+            const deadline = checkRegistrationDeadline(selectedRace.date)[0];
+            if (deadline) e.raceId = deadline.message;
+          }
+          const selectedHorse = horses.find(horse => horse.id === v.horseId);
+          if (selectedRace && selectedHorse && !editing) {
+            const eligibility = isHorseEligibleForRace(selectedHorse, selectedRace);
+            if (!eligibility.ok) e.horseId = eligibility.reasons.join("; ");
+          }
           return Object.keys(e).length ? e : null;
         }}
       />
@@ -154,7 +169,7 @@ function RegistrationManagement() {
         title="Delete registration?"
         message={`Remove registration ${deleting?.id}?`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove(deleting)}
+        onConfirm={() => deleting && void remove(deleting)}
       />
     </div>
   );

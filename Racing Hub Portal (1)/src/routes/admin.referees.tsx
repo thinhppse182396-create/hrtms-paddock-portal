@@ -1,84 +1,97 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { PageHeader } from "@/components/common/PageHeader";
-import { DataTable } from "@/components/common/DataTable";
-import { StatusBadge } from "@/components/common/StatusBadge";
-import { Button } from "@/components/common/Button";
-import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { referees as seedRefs, races, refereeAssignments as seedA, getReferee } from "@/data/mockData";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/common/Button";
+import { DataTable } from "@/components/common/DataTable";
+import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { TableToolbar } from "@/components/common/TableToolbar";
+import { races, refereeAssignments as initialAssignments, referees as initialReferees, systemUsers } from "@/data/databaseData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { deleteReferee, syncReferee } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/admin/referees")({ component: RefereeAssignment });
 
-type Referee = (typeof seedRefs)[number];
-type Assignment = (typeof seedA)[number];
-
-const refFields: Field[] = [
-  { name: "id", label: "ID", required: true },
-  { name: "name", label: "Name", required: true, full: true },
-  { name: "licenseNo", label: "License No", required: true },
-  { name: "experience", label: "Experience", placeholder: "5 years" },
-  { name: "status", label: "Status", type: "select", required: true, options: ["Active", "Inactive"].map(s => ({ label: s, value: s })) },
-];
+type Referee = (typeof initialReferees)[number];
+type Assignment = (typeof initialAssignments)[number];
 
 function RefereeAssignment() {
-  const [refs, setRefs, refsLoading] = usePersistentCollection<Referee>("admin:referees", seedRefs);
-  const [assigns, setAssigns, assignsLoading] = usePersistentCollection<Assignment>("admin:refereeAssignments", seedA);
-  const loading = refsLoading || assignsLoading;
-
+  const [referees, setReferees, refereesLoading] = useDatabaseCollection<Referee>("admin:referees", initialReferees);
+  const [assignments, , assignmentsLoading] = useDatabaseCollection<Assignment>("admin:refereeAssignments", initialAssignments);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Referee | null>(null);
   const [deleting, setDeleting] = useState<Referee | null>(null);
-  const [assignRace, setAssignRace] = useState<string | null>(null);
-
-  const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
-  const filteredRefs = useMemo(() => refs.filter(r => {
-    const m = q.trim().toLowerCase();
-    if (m && !`${r.id} ${r.name} ${r.licenseNo}`.toLowerCase().includes(m)) return false;
-    if (status && r.status !== status) return false;
-    return true;
-  }), [refs, q, status]);
+  const [raceQuery, setRaceQuery] = useState("");
+  const [raceStatus, setRaceStatus] = useState("");
 
-  const [rq, setRQ] = useState("");
-  const [rStatus, setRStatus] = useState("");
-  const filteredRaces = useMemo(() => races.filter(r => {
-    const m = rq.trim().toLowerCase();
-    if (m && !`${r.id} ${r.track}`.toLowerCase().includes(m)) return false;
-    if (rStatus && r.status !== rStatus) return false;
-    return true;
-  }), [rq, rStatus]);
-
-  const upsertRef = (v: Referee) => {
-    const isEdit = refs.some(x => x.id === v.id);
-    setRefs(r => isEdit ? r.map(x => x.id === v.id ? v : x) : [...r, v]);
-    setQ(""); setStatus("");
-    setCreating(false); setEditing(null);
-    toast.success(isEdit ? "Referee updated" : "Referee created", { description: `${v.name} • ${v.licenseNo}` });
-  };
-  const removeRef = (r: Referee) => {
-    setRefs(d => d.filter(x => x.id !== r.id));
-    setAssigns(a => a.filter(x => x.refereeId !== r.id));
-    setDeleting(null);
-    toast.success("Referee deleted", { description: `${r.name} • assignments cleared` });
-  };
-  const assignFields: Field[] = [
-    { name: "refereeId", label: "Referee", type: "select", required: true, full: true, options: refs.filter(r => r.status === "Active").map(r => ({ label: `${r.name} (${r.licenseNo})`, value: r.id })) },
+  const refereeAccounts = systemUsers.filter(user => user.role === "REFEREE");
+  const fields: Field[] = [
+    { name: "id", label: "ID", required: true },
+    {
+      name: "accountId",
+      label: "Referee account",
+      type: "select",
+      required: true,
+      full: true,
+      options: refereeAccounts.map(account => ({ label: `${account.name} (${account.username})`, value: account.id })),
+    },
+    { name: "name", label: "Name", required: true, full: true },
+    { name: "licenseNo", label: "License No", required: true },
   ];
+
+  const visibleReferees = useMemo(() => referees.filter(referee => {
+    const search = query.trim().toLowerCase();
+    if (search && !`${referee.id} ${referee.name} ${referee.licenseNo}`.toLowerCase().includes(search)) return false;
+    return !status || referee.status === status;
+  }), [query, referees, status]);
+
+  const visibleRaces = useMemo(() => races.filter(race => {
+    const search = raceQuery.trim().toLowerCase();
+    if (search && !`${race.id} ${race.track}`.toLowerCase().includes(search)) return false;
+    return !raceStatus || race.status === raceStatus;
+  }), [raceQuery, raceStatus]);
+
+  const upsertReferee = async (referee: Referee) => {
+    const isEdit = Boolean(editing);
+    await syncReferee(referee, isEdit);
+    setReferees(current => isEdit
+      ? current.map(item => item.id === referee.id ? referee : item)
+      : [...current, referee]);
+    setCreating(false);
+    setEditing(null);
+    toast.success(isEdit ? "Referee updated" : "Referee created", { description: referee.name });
+  };
+
+  const removeReferee = async (referee: Referee) => {
+    try {
+      await deleteReferee(referee.id);
+      setReferees(current => current.filter(item => item.id !== referee.id));
+      setDeleting(null);
+      toast.success("Referee deleted", { description: referee.name });
+    } catch (error: any) {
+      toast.error("Cannot delete referee", { description: error?.message });
+    }
+  };
 
   return (
     <div>
-      <PageHeader title="Referee Assignment" subtitle="Assign referees to races"
-        actions={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New Referee</Button>} />
+      <PageHeader
+        title="Referee Assignment"
+        subtitle="Manage referee profiles and configure race panels"
+        actions={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New Referee</Button>}
+      />
 
-      <h2 className="text-sm font-semibold text-foreground mb-3">Active Referees</h2>
+      <h2 className="mb-3 text-sm font-semibold text-foreground">Referees</h2>
       <TableToolbar
-        search={q} onSearch={setQ} searchPlaceholder="Search by name or license…"
+        search={query}
+        onSearch={setQuery}
+        searchPlaceholder="Search by name or license..."
         filters={[
-          { key: "status", label: "Statuses", value: status, onChange: setStatus, options: ["Active","Inactive"].map(s => ({ label: s, value: s })) },
+          { key: "status", label: "Statuses", value: status, onChange: setStatus, options: ["Active", "Inactive"].map(value => ({ label: value, value })) },
         ]}
       />
       <div className="mb-6">
@@ -87,26 +100,27 @@ function RefereeAssignment() {
             { key: "id", header: "ID" },
             { key: "name", header: "Name" },
             { key: "licenseNo", header: "License No" },
-            { key: "experience", header: "Experience" },
-            { key: "status", header: "Status", render: r => <StatusBadge status={r.status} /> },
-            { key: "actions", header: "Actions", render: r => (
+            { key: "status", header: "Status", render: referee => <StatusBadge status={referee.status} /> },
+            { key: "actions", header: "Actions", render: referee => (
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(r)}>Edit</Button>
-                <Button variant="danger" onClick={() => setDeleting(r)}>Delete</Button>
+                <Button variant="ghost" onClick={() => setEditing(referee)}>Edit</Button>
+                <Button variant="danger" onClick={() => setDeleting(referee)}>Delete</Button>
               </div>
-            )},
+            ) },
           ]}
-          rows={filteredRefs}
-          empty={refs.length === 0 ? "No referees yet" : "No matches"}
-          loading={loading}
+          rows={visibleReferees}
+          empty={referees.length === 0 ? "No referees yet" : "No matches"}
+          loading={refereesLoading || assignmentsLoading}
         />
       </div>
 
-      <h2 className="text-sm font-semibold text-foreground mb-3">Race Assignments</h2>
+      <h2 className="mb-3 text-sm font-semibold text-foreground">Race Panels</h2>
       <TableToolbar
-        search={rq} onSearch={setRQ} searchPlaceholder="Search races by ID or track…"
+        search={raceQuery}
+        onSearch={setRaceQuery}
+        searchPlaceholder="Search races by ID or track..."
         filters={[
-          { key: "status", label: "Statuses", value: rStatus, onChange: setRStatus, options: ["Scheduled","Ongoing","Completed","Cancelled"].map(s => ({ label: s, value: s })) },
+          { key: "status", label: "Statuses", value: raceStatus, onChange: setRaceStatus, options: ["Scheduled", "Ongoing", "Completed", "Cancelled"].map(value => ({ label: value, value })) },
         ]}
       />
       <DataTable
@@ -114,61 +128,46 @@ function RefereeAssignment() {
           { key: "id", header: "Race" },
           { key: "date", header: "Date" },
           { key: "track", header: "Track" },
-          { key: "status", header: "Status", render: r => <StatusBadge status={r.status} /> },
-          { key: "referee", header: "Referee", render: r => {
-            const a = assigns.find(x => x.raceId === r.id);
-            return a ? (refs.find(ref => ref.id === a.refereeId)?.name ?? getReferee(a.refereeId)?.name) : <span className="text-warning">Unassigned</span>;
-          }},
-          { key: "actions", header: "Actions", render: r => (
-            <div className="flex gap-2">
-              <Button onClick={() => setAssignRace(r.id)}>{assigns.some(x => x.raceId === r.id) ? "Reassign" : "Assign"}</Button>
-              {assigns.some(x => x.raceId === r.id) && (
-                <Button variant="ghost" onClick={() => { setAssigns(a => a.filter(x => x.raceId !== r.id)); toast.success("Referee unassigned", { description: r.id }); }}>Unassign</Button>
-              )}
-            </div>
-          )},
+          { key: "status", header: "Status", render: race => <StatusBadge status={race.status} /> },
+          { key: "panel", header: "Panel", render: race => {
+            const names = assignments
+              .filter(assignment => assignment.raceId === race.id)
+              .map(assignment => referees.find(referee => referee.id === assignment.refereeId)?.name ?? assignment.refereeId);
+            return names.length > 0 ? names.join(", ") : <span className="text-warning">Unassigned</span>;
+          } },
+          { key: "actions", header: "Actions", render: race => (
+            <Link to="/admin/race-control/$raceId" params={{ raceId: race.id }}>
+              <Button>{assignments.some(assignment => assignment.raceId === race.id) ? "Configure panel" : "Assign panel"}</Button>
+            </Link>
+          ) },
         ]}
-        rows={filteredRaces}
+        rows={visibleRaces}
         empty="No matches"
-        loading={loading}
+        loading={refereesLoading || assignmentsLoading}
       />
 
       <FormModal<Referee>
-        open={creating || !!editing}
+        open={creating || Boolean(editing)}
         title={editing ? "Edit Referee" : "New Referee"}
-        fields={refFields}
-        initial={editing ?? { id: `RF${String(refs.length + 1).padStart(3, "0")}`, status: "Active" } as any}
+        fields={fields}
+        initial={editing ?? { id: `RF${String(referees.length + 1).padStart(3, "0")}`, status: "Active" } as Partial<Referee>}
         onClose={() => { setCreating(false); setEditing(null); }}
-        onSubmit={upsertRef}
-        validate={(v) => {
-          const e: Record<string, string> = {};
-          if (!editing && refs.some(x => x.id === v.id)) e.id = "ID already exists";
-          if (refs.some(x => x.licenseNo === v.licenseNo && x.id !== v.id)) e.licenseNo = "License No already used";
-          return Object.keys(e).length ? e : null;
+        onSubmit={upsertReferee}
+        validate={referee => {
+          const errors: Record<string, string> = {};
+          if (editing && referee.id !== editing.id) errors.id = "ID cannot be changed";
+          if (!editing && referees.some(item => item.id === referee.id)) errors.id = "ID already exists";
+          if (referees.some(item => item.licenseNo === referee.licenseNo && item.id !== referee.id)) errors.licenseNo = "License No already used";
+          if (referees.some(item => item.accountId === referee.accountId && item.id !== referee.id)) errors.accountId = "Account already assigned";
+          return Object.keys(errors).length > 0 ? errors : null;
         }}
       />
       <ConfirmDialog
-        open={!!deleting}
+        open={Boolean(deleting)}
         title="Delete referee?"
-        message={`Remove ${deleting?.name}? Assignments will be cleared.`}
+        message={`Remove ${deleting?.name}? Assigned referees must be removed from race panels first.`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && removeRef(deleting)}
-      />
-      <FormModal<{ refereeId: string }>
-        open={!!assignRace}
-        title={`Assign Referee — ${assignRace}`}
-        fields={assignFields}
-        onClose={() => setAssignRace(null)}
-        onSubmit={(v) => {
-          if (!assignRace) return;
-          setAssigns(a => {
-            const filtered = a.filter(x => x.raceId !== assignRace);
-            return [...filtered, { raceId: assignRace, refereeId: v.refereeId }];
-          });
-          toast.success("Referee assigned", { description: `${refs.find(r => r.id === v.refereeId)?.name ?? getReferee(v.refereeId)?.name} → ${assignRace}` });
-          setAssignRace(null);
-        }}
-        submitLabel="Assign"
+        onConfirm={() => { if (deleting) void removeReferee(deleting); }}
       />
     </div>
   );

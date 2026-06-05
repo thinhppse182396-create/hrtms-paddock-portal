@@ -1,11 +1,9 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useAuth, getDashboardPathByRole } from "@/auth/AuthContext";
+import { useAuth, getDashboardPathByRole, type Role } from "@/auth/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import type { Role } from "@/data/mockUsers";
-import { mockUsers } from "@/data/mockUsers";
 import { toast } from "sonner";
 import {
   LayoutDashboard, Calendar, Trophy, Users, ShieldCheck, FileText, AlertTriangle,
@@ -83,14 +81,12 @@ function ProfilePage() {
 
   if (!isAuthenticated || !currentUser) return <Navigate to="/login" />;
 
-  const isDemoAccount = mockUsers.some(u => u.username === currentUser.username);
   const features = FEATURES[currentUser.role];
 
-  const submitPw = () => {
+  const submitPw = async () => {
     setPwError(null);
-    if (isDemoAccount) { setPwError("Demo account cannot change password"); return; }
     if (newPw !== confirmPw) { setPwError("New password and confirmation do not match"); return; }
-    const res = resetPassword(currentUser.username, newPw);
+    const res = await resetPassword(currentUser.username, oldPw, newPw);
     if (!res.ok) { setPwError(res.error); return; }
     toast.success("Password updated");
     setOldPw(""); setNewPw(""); setConfirmPw("");
@@ -136,7 +132,7 @@ function ProfilePage() {
               <div className="flex justify-between items-center">
                 <dt className="text-muted-foreground">Account type</dt>
                 <dd>
-                  <StatusBadge status={isDemoAccount ? "Demo" : "Active"} />
+                  <StatusBadge status="Active" />
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -151,11 +147,6 @@ function ProfilePage() {
             <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-primary" /> Change Password
             </h3>
-            {isDemoAccount ? (
-              <div className="text-sm text-muted-foreground bg-muted/50 border border-border rounded-md p-3">
-                This is a demo account. Sign up a new account to change passwords.
-              </div>
-            ) : (
               <div className="space-y-3 max-w-md">
                 <div>
                   <label className="text-xs text-muted-foreground">Current password</label>
@@ -175,7 +166,6 @@ function ProfilePage() {
                 {pwError && <div className="text-xs text-destructive">{pwError}</div>}
                 <Button onClick={submitPw} disabled={!newPw || !confirmPw}>Update password</Button>
               </div>
-            )}
           </div>
         </div>
 

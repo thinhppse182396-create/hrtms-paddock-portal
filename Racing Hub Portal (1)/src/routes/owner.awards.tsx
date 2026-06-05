@@ -3,13 +3,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { horses, raceResults, getRace, getJockey, awardCeremonies } from "@/data/mockData";
+import { horses, raceResults, getRace, getJockey, awardCeremonies } from "@/data/databaseData";
 import { Trophy, DollarSign, Medal } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/owner/awards")({ component: OwnerAwards });
 
 function OwnerAwards() {
-  const myHorses = horses.filter(h => h.ownerId === "O001");
+  const { currentUser } = useAuth();
+  const myHorses = horses.filter(h => h.ownerId === currentUser?.accountId);
   const myHorseIds = new Set(myHorses.map(h => h.id));
   const myWinnings = raceResults
     .filter(r => myHorseIds.has(r.horseId))

@@ -6,8 +6,8 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { races, horses as horseSeed, jockeys, registrations as regSeed, getTournament, isHorseEligibleForRace, type Horse } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { races, horses as horseSeed, jockeys, registrations as regSeed, getTournament, isHorseEligibleForRace, type Horse } from "@/data/databaseData";
 import {
   checkJockeyDailyEntries,
   checkHorseRest,
@@ -17,17 +17,19 @@ import {
   type ConstraintIssue,
 } from "@/lib/racing";
 import { isBackendEnabled, syncRegistration } from "@/lib/backendApi";
+import { parseLocalDateTime, toLocalDateString } from "@/lib/dateTime";
 import { CheckCircle2, XCircle, Info, AlertTriangle, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/owner/race-registration")({ component: RaceRegistration });
-
-const OWNER_ID = "O001";
 
 type Reg = (typeof regSeed)[number] & { reason?: string; backupJockeyId?: string };
 
 function RaceRegistration() {
-  const [registrations, setRegistrations] = usePersistentCollection<Reg>("admin:registrations", regSeed as Reg[]);
-  const [allHorses] = usePersistentCollection<Horse>("owner:horses", horseSeed);
+  const [registrations, setRegistrations] = useDatabaseCollection<Reg>("admin:registrations", regSeed as Reg[]);
+  const { currentUser } = useAuth();
+  const ownerId = currentUser?.accountId ?? "";
+  const [allHorses] = useDatabaseCollection<Horse>("owner:horses", horseSeed);
 
   const [open, setOpen] = useState(false);
   const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
@@ -35,8 +37,8 @@ function RaceRegistration() {
   const [selectedJockeyId, setSelectedJockeyId] = useState<string>(jockeys[0]?.id ?? "");
   const [backupJockeyId, setBackupJockeyId] = useState<string>("");
 
-  const openRaces = races.filter(r => r.status === "Scheduled");
-  const myHorses = useMemo(() => allHorses.filter(h => h.ownerId === OWNER_ID), [allHorses]);
+  const openRaces = races.filter(r => r.status === "Scheduled" && checkRegistrationDeadline(r.date).length === 0);
+  const myHorses = useMemo(() => allHorses.filter(h => h.ownerId === ownerId), [allHorses, ownerId]);
   const selectedRace = openRaces.find(r => r.id === selectedRaceId) ?? null;
   const eligibleList = selectedRace ? myHorses.map(h => ({ horse: h, check: isHorseEligibleForRace(h, selectedRace) })) : [];
 
@@ -53,8 +55,8 @@ function RaceRegistration() {
     if (!selectedRace) return [];
     const all: ConstraintIssue[] = [];
     all.push(...checkRegistrationDeadline(selectedRace.date));
-    const raceDateTime = new Date(`${selectedRace.date}T${selectedRace.time || "00:00"}:00`);
-    all.push(...checkJockeySwapLock(raceDateTime));
+    const raceDateTime = parseLocalDateTime(selectedRace.date, selectedRace.time || "00:00");
+    if (raceDateTime) all.push(...checkJockeySwapLock(raceDateTime));
     if (selectedJockeyId) all.push(...checkJockeyDailyEntries(selectedJockeyId, selectedRace.date, entries));
     if (selectedHorseId) all.push(...checkHorseRest(selectedHorseId, selectedRace.date, entries));
     return all;
@@ -64,19 +66,22 @@ function RaceRegistration() {
   const duplicate = !!selectedRace && !!selectedHorseId && registrations.some(
     r => r.raceId === selectedRace.id && r.horseId === selectedHorseId && r.status !== "Rejected" && r.status !== "Cancelled",
   );
-  const canSubmit = !!selectedHorseId && !!selectedJockeyId && !duplicate;
+  const canSubmit = !!selectedHorseId &&
+    !!selectedJockeyId &&
+    !duplicate &&
+    !constraintIssues.some(issue => issue.level === "error");
 
   const submit = async () => {
     if (!selectedRace || !selectedHorseId || !selectedJockeyId) return;
     const max = registrations.reduce((m, r) => Math.max(m, Number(String(r.id).replace(/\D/g, "")) || 0), 0);
     const reg: Reg = {
-      id: `RG${String(max + 1).padStart(3, "0")}`,
+      id: isBackendEnabled() ? `RG${Date.now()}` : `RG${String(max + 1).padStart(3, "0")}`,
       raceId: selectedRace.id,
       horseId: selectedHorseId,
       jockeyId: selectedJockeyId,
-      ownerId: OWNER_ID,
+      ownerId,
       status: "Pending",
-      submittedAt: new Date().toISOString().slice(0, 10),
+      submittedAt: toLocalDateString(),
       ...(backupJockeyId ? { backupJockeyId } : {}),
     };
     if (isBackendEnabled()) {

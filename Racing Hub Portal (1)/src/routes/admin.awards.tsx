@@ -10,10 +10,11 @@ import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { awardCeremonies as initial, races as seedRaces, raceResults, registrations, getRace, getHorse, getJockey, getOwner, getTournament, type AwardCeremony, type Race } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { awardCeremonies as initial, races as seedRaces, raceResults, registrations, getRace, getHorse, getJockey, getOwner, getTournament, type AwardCeremony, type Race } from "@/data/databaseData";
 import { actualPrizePool, guaranteedMinimum, bettingContribution, prizeBreakdown, getCommitment } from "@/lib/racing";
 import { Trophy, Calendar, DollarSign, Medal, Crown, PlayCircle, Plus, Layers, Coins } from "lucide-react";
+import { deleteAwardCeremony, syncAward, syncAwardCeremony } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/admin/awards")({ component: AdminAwards });
 
@@ -35,9 +36,9 @@ const prizeFields: Field[] = [
 ];
 
 function AdminAwards() {
-  const [ceremonies, setCeremonies, ceremoniesLoading] = usePersistentCollection<AwardCeremony>("admin:awardCeremonies", initial);
-  const [races, setRaces, racesLoading] = usePersistentCollection<Race>("admin:races", seedRaces);
-  const [results] = usePersistentCollection<(typeof raceResults)[number]>("admin:results", raceResults);
+  const [ceremonies, setCeremonies, ceremoniesLoading] = useDatabaseCollection<AwardCeremony>("admin:awardCeremonies", initial);
+  const [races, setRaces, racesLoading] = useDatabaseCollection<Race>("admin:races", seedRaces);
+  const [results] = useDatabaseCollection<(typeof raceResults)[number]>("admin:results", raceResults);
   const loading = ceremoniesLoading || racesLoading;
 
   const [viewingRaceId, setViewingRaceId] = useState<string | null>(null);
@@ -54,27 +55,31 @@ function AdminAwards() {
     ? results.filter(r => r.raceId === viewingRaceId && !r.disqualified).sort((a, b) => a.rank - b.rank).slice(0, 3)
     : [];
 
-  const upsertCeremony = (v: AwardCeremony) => {
+  const upsertCeremony = async (v: AwardCeremony) => {
     const isEdit = !!editing;
+    await syncAwardCeremony(v, isEdit);
     setCeremonies(cs => isEdit ? cs.map(c => c === editing ? v : c) : [...cs, v]);
     setQ(""); setStatus("");
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Ceremony updated" : "Ceremony created", { description: `${v.raceId} • ${v.venue}` });
   };
-  const removeCeremony = (c: AwardCeremony) => {
+  const removeCeremony = async (c: AwardCeremony) => {
+    await deleteAwardCeremony(c.raceId);
     setCeremonies(cs => cs.filter(x => x !== c));
     setDeleting(null);
     toast.success("Ceremony deleted", { description: c.raceId });
   };
-  const savePrizes = (v: any) => {
+  const savePrizes = async (v: any) => {
     if (!editingPrize) return;
+    const nextPrizes = [
+      { ...editingPrize.prizes.find(prize => prize.rank === 1), rank: 1, money: Number(v.p1_money), trophy: v.p1_trophy },
+      { ...editingPrize.prizes.find(prize => prize.rank === 2), rank: 2, money: Number(v.p2_money), trophy: v.p2_trophy },
+      { ...editingPrize.prizes.find(prize => prize.rank === 3), rank: 3, money: Number(v.p3_money), trophy: v.p3_trophy },
+    ];
+    await Promise.all(nextPrizes.map(prize => syncAward(editingPrize.id, prize.rank, prize.money, prize.backendId)));
     setRaces(rs => rs.map(r => r.id === editingPrize.id ? {
       ...r,
-      prizes: [
-        { rank: 1, money: Number(v.p1_money), trophy: v.p1_trophy },
-        { rank: 2, money: Number(v.p2_money), trophy: v.p2_trophy },
-        { rank: 3, money: Number(v.p3_money), trophy: v.p3_trophy },
-      ],
+      prizes: nextPrizes,
     } : r));
     toast.success("Prizes updated", { description: editingPrize.id });
     setEditingPrize(null);
@@ -173,8 +178,7 @@ function AdminAwards() {
         {races.map(r => {
           const commitment = getCommitment(r.id);
           const confirmed = registrations.filter(rg => rg.raceId === r.id && rg.status === "Approved").length || 1;
-          // Mock total handle from prizes seed * 8 for a realistic betting volume
-          const handle = (r.prizes[0]?.money ?? 0) * 6;
+          const handle = 0;
           const guaranteed = guaranteedMinimum(commitment, confirmed);
           const fromBets = bettingContribution(handle);
           const pool = actualPrizePool(commitment, confirmed, handle);
@@ -257,7 +261,7 @@ function AdminAwards() {
         title="Delete ceremony?"
         message={`Remove ceremony for race ${deleting?.raceId}?`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && removeCeremony(deleting)}
+        onConfirm={() => deleting && void removeCeremony(deleting)}
       />
       <FormModal
         open={!!editingPrize}

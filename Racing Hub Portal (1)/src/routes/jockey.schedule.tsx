@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { jockeyInvitations, races, getHorse, getOwner, getTournament } from "@/data/mockData";
+import { jockeys, jockeyInvitations, races, getHorse, getOwner, getTournament } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/jockey/schedule")({ component: MyRaceSchedule });
 
 function MyRaceSchedule() {
-  const myJockeyId = "J001";
+  const { currentUser } = useAuth();
+  const myJockeyId = jockeys.find(jockey => jockey.accountId === currentUser?.accountId)?.id ?? "";
   const accepted = jockeyInvitations.filter(i => i.jockeyId === myJockeyId && i.status === "Accepted");
   const rows = accepted.map(a => {
     const race = races.find(r => r.id === a.raceId);

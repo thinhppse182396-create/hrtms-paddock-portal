@@ -4,7 +4,7 @@ import { Trophy, LogIn, Calendar, Award, BarChart3, Flag, Sparkles, Users, Rabbi
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { races, raceResults, jockeys, horses, awardCeremonies, getRace, getHorse, getJockey, getTournament } from "@/data/mockData";
+import { races, raceResults, jockeys, horses, awardCeremonies, getRace, getHorse, getJockey, getTournament } from "@/data/databaseData";
 
 export const Route = createFileRoute("/watch")({ component: PublicWatchPage });
 

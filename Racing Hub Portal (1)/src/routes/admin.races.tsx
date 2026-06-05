@@ -7,11 +7,11 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { races as seed, tournaments, getTournament, registrations, refereeAssignments, getJockey, getReferee, type Race } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { races as seed, tournaments, getTournament, registrations, refereeAssignments, getJockey, getReferee, type Race } from "@/data/databaseData";
 import { auditLog } from "@/lib/auditLog";
-import { saveRace } from "@/lib/mockApi";
-import { deleteRace, isBackendEnabled, syncRace } from "@/lib/backendApi";
+import { deleteRace, syncRace } from "@/lib/backendApi";
+import { addLocalDays, parseLocalDateTime } from "@/lib/dateTime";
 import { Plus, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/races")({ component: RaceManagement });
@@ -82,7 +82,7 @@ function fromForm(f: RaceForm, prev?: Race): Race {
 const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 
 function RaceManagement() {
-  const [rows, setRows, loading] = usePersistentCollection<Race>("admin:races", seed);
+  const [rows, setRows, loading] = useDatabaseCollection<Race>("admin:races", seed);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Race | null>(null);
@@ -122,13 +122,7 @@ function RaceManagement() {
       toast.error("Cannot save race", { description: c });
       return;
     }
-    await saveRace(
-      { id: race.id, tournamentId: race.tournamentId },
-      { existing: rows, tournamentIds: tournaments.map(t => t.id), editingId: prev?.id }
-    );
-    if (isBackendEnabled()) {
-      await syncRace(race, !!prev);
-    }
+    await syncRace(race, !!prev);
     setRows(r => prev ? r.map(x => x.id === race.id ? race : x) : [...r, race]);
     auditLog.add({ actor: "System Admin", action: prev ? "EDIT_RACE" : "CREATE_RACE", target: race.id, details: `${race.track} • ${race.date} ${race.time}` });
     setQ(""); setTFilter(""); setSFilter("");
@@ -136,13 +130,11 @@ function RaceManagement() {
     toast.success(prev ? "Race updated" : "Race created", { description: `${race.id} • ${race.track} • ${race.date} ${race.time}` });
   };
   const remove = async (id: string) => {
-    if (isBackendEnabled()) {
-      try {
-        await deleteRace(id);
-      } catch (error: any) {
-        toast.error("Cannot delete race", { description: error?.message });
-        return;
-      }
+    try {
+      await deleteRace(id);
+    } catch (error: any) {
+      toast.error("Cannot delete race", { description: error?.message });
+      return;
     }
     setRows(r => r.filter(x => x.id !== id));
     auditLog.add({ actor: "System Admin", action: "DELETE_RACE", target: id });
@@ -213,7 +205,7 @@ function RaceManagement() {
         open={creating || !!editing}
         title={editing ? "Edit Race" : "Create Race"}
         fields={fields}
-        initial={editing ? toForm(editing) : { id: `R${String(rows.length + 1).padStart(3, "0")}`, status: "Scheduled", lanes: 8, p1_money: 10000, p1_trophy: "Gold", p2_money: 5000, p2_trophy: "Silver", p3_money: 2500, p3_trophy: "Bronze" } as any}
+        initial={editing ? toForm(editing) : { id: `R${String(rows.length + 1).padStart(3, "0")}`, round: 1, date: addLocalDays(7), time: "14:00", status: "Scheduled", lanes: 8, p1_money: 10000, p1_trophy: "Gold", p2_money: 5000, p2_trophy: "Silver", p3_money: 2500, p3_trophy: "Bronze" } as any}
         onClose={() => { setCreating(false); setEditing(null); }}
         onSubmit={upsert}
         validate={(v) => {
@@ -243,6 +235,16 @@ function RaceManagement() {
             e.date = e.date || "Date is required";
           } else if (!/^\d{4}-\d{2}-\d{2}$/.test(v.date)) {
             e.date = "Date must be YYYY-MM-DD";
+          }
+          if (!e.time && !e.date) {
+            const scheduledAt = parseLocalDateTime(v.date, v.time);
+            if (!scheduledAt) {
+              e.time = "Date and time are invalid";
+            } else if (v.status === "Scheduled" && scheduledAt <= new Date()) {
+              e.date = "A scheduled race must start in the future";
+            } else if ((v.status === "Ongoing" || v.status === "Completed") && scheduledAt > new Date()) {
+              e.date = "An ongoing or completed race cannot start in the future";
+            }
           }
           if (!e.time && !e.date && v.tournamentId) {
             const dup = rows.find(r =>

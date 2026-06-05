@@ -1,5 +1,6 @@
 // Lightweight in-memory audit log with pub-sub for UI subscriptions.
 import { useEffect, useState } from "react";
+import { toLocalDateTimeString } from "./dateTime";
 
 export interface AuditEntry {
   id: string;
@@ -26,7 +27,7 @@ export const auditLog = {
     const e: AuditEntry = {
       ...entry,
       id: `A${String(entries.length + 1).padStart(3, "0")}`,
-      at: new Date().toISOString().slice(0, 16).replace("T", " "),
+      at: toLocalDateTimeString(),
     };
     entries = [e, ...entries];
     listeners.forEach(fn => fn());

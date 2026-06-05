@@ -5,9 +5,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { raceResults as seed, races, registrations, getHorse, getJockey, getRace } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { raceResults as seed, races, registrations, getHorse, getJockey, getRace } from "@/data/databaseData";
 import { Send } from "lucide-react";
+import { syncRaceResult } from "@/lib/backendApi";
 
 type Result = (typeof seed)[number];
 
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/referee/record-result")({ component: Resu
 
 function ResultRecording() {
   // SHARED key with Admin Publish Results — referee submit -> admin sees instantly.
-  const [rows, setRows] = usePersistentCollection<Result>("admin:results", seed);
+  const [rows, setRows] = useDatabaseCollection<Result>("admin:results", seed);
 
   const [raceId, setRaceId] = useState(races[0]?.id ?? "");
   const race = getRace(raceId);
@@ -38,25 +39,28 @@ function ResultRecording() {
     .sort((a, b) => a.finishTime.localeCompare(b.finishTime))
     .map((d, i) => ({ ...d, rank: i + 1 }));
 
-  const submit = () => {
+  const submit = async () => {
     if (!race) return;
     if (ranked.length === 0 && !draft.some(d => d.disqualified)) {
       toast.error("Cần nhập ít nhất 1 finish time hoặc đánh dấu DQ"); return;
     }
     // Replace any prior rows for this race with the new draft.
     const others = rows.filter(r => r.raceId !== raceId);
-    const submitted: Result[] = draft.map(d => {
+    const submitted: Result[] = draft.map((d, index) => {
       const r = ranked.find(x => x.horseId === d.horseId);
+      const existing = rows.find(row => row.raceId === raceId && row.horseId === d.horseId);
       return {
+        backendId: existing?.backendId,
         raceId,
         horseId: d.horseId,
         jockeyId: d.jockeyId,
         finishTime: d.disqualified ? "—" : d.finishTime,
-        rank: r?.rank ?? 0,
+        rank: r?.rank ?? ranked.length + index + 1,
         disqualified: d.disqualified,
         published: false,
       };
     });
+    await Promise.all(submitted.map(syncRaceResult));
     setRows([...others, ...submitted]);
     toast.success("Đã gửi kết quả lên Admin", { description: `${raceId} • ${submitted.length} runners` });
   };
@@ -106,7 +110,7 @@ function ResultRecording() {
       />
 
       <div className="mt-6 flex gap-2">
-        <Button onClick={submit}><Send className="h-4 w-4" /> Submit to Admin</Button>
+        <Button onClick={() => void submit()}><Send className="h-4 w-4" /> Submit to Admin</Button>
       </div>
     </div>
   );

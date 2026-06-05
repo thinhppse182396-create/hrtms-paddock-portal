@@ -16,7 +16,14 @@ namespace HRTMS.Models.on_board
 
         public string RaceName { get; set; } = string.Empty;
 
-        //public DateTime Date { get; set; }
+        public DateTime ScheduledAt { get; set; }
+        public int RoundNumber { get; set; } = 1;
+        public int MinAge { get; set; } = 1;
+        public int MaxAge { get; set; } = 99;
+        public int MinWeight { get; set; } = 1;
+        public int MaxWeight { get; set; } = 999;
+        public string AllowedBreeds { get; set; } = string.Empty;
+        public bool RequiresValidHealthCert { get; set; } = true;
 
         //public string TrackID { get; set; } = string.Empty;
         //[ForeignKey("TrackID")]

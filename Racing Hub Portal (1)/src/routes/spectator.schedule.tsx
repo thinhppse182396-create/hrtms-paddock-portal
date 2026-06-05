@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { races, getTournament } from "@/data/mockData";
+import { races, getTournament } from "@/data/databaseData";
 
 export const Route = createFileRoute("/spectator/schedule")({ component: SpectatorSchedule });
 

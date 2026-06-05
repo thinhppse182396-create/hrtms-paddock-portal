@@ -8,8 +8,9 @@ import { Flag, ShieldCheck, AlertTriangle, Play } from "lucide-react";
 import {
   races, horses, jockeys, registrations,
   getRace, getHorse, getJockey,
-} from "@/data/mockData";
+} from "@/data/databaseData";
 import { toast } from "sonner";
+import { getPreRaceCheck, savePreRaceCheck } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/referee/pre-race-check")({ component: PreRaceCheck });
 
@@ -25,29 +26,10 @@ interface RaceCheck {
   cancelReason?: string;
 }
 
-const STORAGE_KEY = "preRaceChecks";
-
-function loadChecks(): Record<string, RaceCheck> {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
 function PreRaceCheck() {
-  const [hydrated, setHydrated] = useState(false);
   const [allChecks, setAllChecks] = useState<Record<string, RaceCheck>>({});
   const [raceId, setRaceId] = useState<string>("");
-
-  useEffect(() => {
-    setAllChecks(loadChecks());
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(allChecks)); } catch {/* */}
-  }, [allChecks, hydrated]);
+  const [loadedRaceId, setLoadedRaceId] = useState("");
 
   // Race that needs a check = Scheduled or Ongoing and not yet cancelled
   const checkableRaces = races.filter(r => r.status === "Scheduled" || r.status === "Ongoing");
@@ -55,9 +37,32 @@ function PreRaceCheck() {
     if (!raceId && checkableRaces.length) setRaceId(checkableRaces[0].id);
   }, [raceId, checkableRaces]);
 
+  useEffect(() => {
+    if (!raceId) return;
+    let active = true;
+    setLoadedRaceId("");
+    void getPreRaceCheck<RaceCheck>(raceId).then(check => {
+      if (!active) return;
+      setAllChecks(currentChecks => ({
+        ...currentChecks,
+        [raceId]: check ?? { raceId, horses: {}, jockeys: {} },
+      }));
+      setLoadedRaceId(raceId);
+    });
+    return () => { active = false; };
+  }, [raceId]);
+
   const race = raceId ? getRace(raceId) : null;
   const current: RaceCheck = allChecks[raceId] ?? { raceId, horses: {}, jockeys: {} };
   const locked = !!current.submittedAt || !!current.startedAt || !!current.cancelled;
+
+  useEffect(() => {
+    if (!raceId || loadedRaceId !== raceId || !allChecks[raceId]) return;
+    const timer = window.setTimeout(() => {
+      void savePreRaceCheck(raceId, allChecks[raceId]);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [allChecks, loadedRaceId, raceId]);
 
   // Field for this race: approved registrations
   const field = useMemo(() => {
@@ -146,14 +151,10 @@ function PreRaceCheck() {
 
   const resetChecks = () => {
     if (!window.confirm("Reset all checks for this race? Submitted state will be cleared.")) return;
-    setAllChecks(s => {
-      const next = { ...s };
-      delete next[raceId];
-      return next;
-    });
+    setAllChecks(s => ({ ...s, [raceId]: { raceId, horses: {}, jockeys: {} } }));
   };
 
-  // Build a flat list of horses/jockeys to display: field first, then any remaining mock entries
+  // Show the approved field first; fall back to database rows while a field is being prepared.
   const horseRows = fieldHorses.length ? fieldHorses : horses;
   const jockeyRows = fieldJockeys.length ? fieldJockeys : jockeys;
 

@@ -4,12 +4,14 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { jockeyInvitations, races, raceResults, getHorse, getRace } from "@/data/mockData";
+import { jockeys, jockeyInvitations, races, raceResults, getHorse, getRace } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/jockey/dashboard")({ component: JockeyDashboard });
 
 function JockeyDashboard() {
-  const myJockeyId = "J001";
+  const { currentUser } = useAuth();
+  const myJockeyId = jockeys.find(jockey => jockey.accountId === currentUser?.accountId)?.id ?? "";
   const myInvites = jockeyInvitations.filter(i => i.jockeyId === myJockeyId);
   const accepted = myInvites.filter(i => i.status === "Accepted");
   const waiting = myInvites.filter(i => i.status === "Waiting");

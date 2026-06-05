@@ -4,19 +4,22 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { horses, registrations, races, raceResults, getHorse } from "@/data/mockData";
+import { horses, registrations, races, raceResults, getHorse } from "@/data/databaseData";
+import { calendarDaysBetween, toLocalDateString } from "@/lib/dateTime";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/owner/dashboard")({ component: OwnerDashboard });
 
 function OwnerDashboard() {
-  const myOwnerId = "O001";
+  const { currentUser } = useAuth();
+  const myOwnerId = currentUser?.accountId ?? "";
   const myHorses = horses.filter(h => h.ownerId === myOwnerId);
   const eligible = myHorses.filter(h => h.status === "Eligible").length;
   const myRegs = registrations.filter(r => r.ownerId === myOwnerId);
   const upcoming = races.filter(r => r.status === "Scheduled");
   const recentResults = raceResults.filter(r => myHorses.some(h => h.id === r.horseId));
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 7);
-  const expiringSoon = myHorses.filter(h => new Date(h.healthCertExpiry) <= cutoff);
+  const today = toLocalDateString();
+  const expiringSoon = myHorses.filter(h => calendarDaysBetween(today, h.healthCertExpiry) <= 7);
 
   return (
     <div>
@@ -35,7 +38,7 @@ function OwnerDashboard() {
           <div className="text-sm">
             <div className="font-semibold text-foreground">Stable alerts</div>
             <div className="text-muted-foreground">
-              Health certificate expiring within 7 days: {expiringSoon.map(h => `${h.name} (${h.healthCertExpiry})`).join(", ")}
+              Health certificate expired or expiring within 7 days: {expiringSoon.map(h => `${h.name} (${h.healthCertExpiry})`).join(", ")}
             </div>
           </div>
         </div>

@@ -1,8 +1,18 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { mockUsers, type MockUser, type Role } from "@/data/mockUsers";
-import { isBackendEnabled, loginWithBackend } from "@/lib/backendApi";
+import {
+  changePasswordWithBackend,
+  loginWithBackend,
+  registerSpectatorWithBackend,
+} from "@/lib/backendApi";
 
-export type AuthUser = Omit<MockUser, "password">;
+export type Role = "ADMIN" | "REFEREE" | "OWNER" | "JOCKEY" | "SPECTATOR";
+
+export interface AuthUser {
+  accountId: string;
+  username: string;
+  role: Role;
+  name: string;
+}
 
 interface SignupInput {
   username: string;
@@ -14,16 +24,14 @@ interface AuthContextValue {
   currentUser: AuthUser | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ ok: true; user: AuthUser } | { ok: false; error: string }>;
-  signupSpectator: (input: SignupInput) => { ok: true; user: AuthUser } | { ok: false; error: string };
-  resetPassword: (username: string, newPassword: string) => { ok: true } | { ok: false; error: string };
+  signupSpectator: (input: SignupInput) => Promise<{ ok: true; user: AuthUser } | { ok: false; error: string }>;
+  resetPassword: (username: string, currentPassword: string, newPassword: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   logout: () => void;
   getDashboardPathByRole: (role: Role) => string;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
 const STORAGE_KEY = "currentUser";
-const SIGNUP_USERS_KEY = "signupUsers";
 
 export function getDashboardPathByRole(role: Role): string {
   switch (role) {
@@ -35,20 +43,22 @@ export function getDashboardPathByRole(role: Role): string {
   }
 }
 
-function loadSignupUsers(): MockUser[] {
-  try {
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(SIGNUP_USERS_KEY) : null;
-    return raw ? (JSON.parse(raw) as MockUser[]) : [];
-  } catch { return []; }
-}
-
-function saveSignupUsers(list: MockUser[]) {
-  try { window.localStorage.setItem(SIGNUP_USERS_KEY, JSON.stringify(list)); } catch {}
+function toAuthUser(found: {
+  accountId: string;
+  username: string;
+  fullName: string;
+  roleCode: "ADMIN" | "REFEREE" | "JOCKEY" | "HORSE_OWNER" | "SPECTATOR";
+}): AuthUser {
+  return {
+    accountId: found.accountId,
+    username: found.username,
+    role: found.roleCode === "HORSE_OWNER" ? "OWNER" : found.roleCode,
+    name: found.fullName,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [signupUsers, setSignupUsers] = useState<MockUser[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -56,70 +66,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
       if (raw) setCurrentUser(JSON.parse(raw));
     } catch {}
-    setSignupUsers(loadSignupUsers());
     setHydrated(true);
   }, []);
 
-  const allUsers = (): MockUser[] => [...mockUsers, ...signupUsers];
+  const remember = (user: AuthUser) => {
+    setCurrentUser(user);
+    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user)); } catch {}
+  };
 
   const login: AuthContextValue["login"] = async (username, password) => {
-    if (isBackendEnabled()) {
-      try {
-        const found = await loginWithBackend(username, password);
-        const role: Role = found.roleCode === "HORSE_OWNER" ? "OWNER" : found.roleCode;
-        const user: AuthUser = { username: found.username, role, name: found.fullName };
-        setCurrentUser(user);
-        try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user)); } catch {}
-        return { ok: true, user };
-      } catch (error: any) {
-        return { ok: false, error: error?.message ?? "Backend login failed" };
-      }
+    try {
+      const user = toAuthUser(await loginWithBackend(username.trim(), password));
+      remember(user);
+      return { ok: true, user };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? "Backend login failed" };
     }
-
-    const found = allUsers().find(u => u.username === username && u.password === password);
-    if (!found) return { ok: false, error: "Invalid username or password" };
-    const user: AuthUser = { username: found.username, role: found.role, name: found.name };
-    setCurrentUser(user);
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user)); } catch {}
-    return { ok: true, user };
   };
 
-  const signupSpectator: AuthContextValue["signupSpectator"] = ({ username, password, name }) => {
+  const signupSpectator: AuthContextValue["signupSpectator"] = async ({ username, password, name }) => {
     const uname = username.trim();
-    const dname = name.trim();
-    if (uname.length < 3) return { ok: false, error: "Tên đăng nhập phải có ít nhất 3 ký tự" };
-    if (!/^[a-zA-Z0-9_]+$/.test(uname)) return { ok: false, error: "Tên đăng nhập chỉ gồm chữ, số, dấu gạch dưới" };
-    if (password.length < 6) return { ok: false, error: "Mật khẩu phải có ít nhất 6 ký tự" };
-    if (dname.length < 2) return { ok: false, error: "Vui lòng nhập họ tên hiển thị" };
-    if (allUsers().some(u => u.username.toLowerCase() === uname.toLowerCase())) {
-      return { ok: false, error: "Tên đăng nhập đã tồn tại" };
+    const displayName = name.trim();
+    if (uname.length < 3) return { ok: false, error: "Username must contain at least 3 characters." };
+    if (!/^[a-zA-Z0-9_]+$/.test(uname)) return { ok: false, error: "Username may contain only letters, numbers and underscores." };
+    if (password.length < 6) return { ok: false, error: "Password must contain at least 6 characters." };
+    if (displayName.length < 2) return { ok: false, error: "Please enter your display name." };
+
+    try {
+      const user = toAuthUser(await registerSpectatorWithBackend(uname, password, displayName));
+      remember(user);
+      return { ok: true, user };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? "Registration failed" };
     }
-    const newUser: MockUser = { username: uname, password, name: dname, role: "SPECTATOR" };
-    const next = [...signupUsers, newUser];
-    setSignupUsers(next);
-    saveSignupUsers(next);
-    const user: AuthUser = { username: newUser.username, role: newUser.role, name: newUser.name };
-    setCurrentUser(user);
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(user)); } catch {}
-    return { ok: true, user };
   };
 
-  const resetPassword: AuthContextValue["resetPassword"] = (username, newPassword) => {
-    const uname = username.trim();
-    if (!uname) return { ok: false, error: "Vui lòng nhập tên đăng nhập" };
-    if (newPassword.length < 6) return { ok: false, error: "Mật khẩu mới phải có ít nhất 6 ký tự" };
-    const idx = signupUsers.findIndex(u => u.username.toLowerCase() === uname.toLowerCase());
-    if (idx === -1) {
-      if (mockUsers.some(u => u.username.toLowerCase() === uname.toLowerCase())) {
-        return { ok: false, error: "Tài khoản demo không thể đổi mật khẩu" };
-      }
-      return { ok: false, error: "Không tìm thấy tài khoản" };
+  const resetPassword: AuthContextValue["resetPassword"] = async (username, currentPassword, newPassword) => {
+    if (newPassword.length < 6) return { ok: false, error: "New password must contain at least 6 characters." };
+    try {
+      await changePasswordWithBackend(username.trim(), currentPassword, newPassword);
+      return { ok: true };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? "Password update failed" };
     }
-    const next = [...signupUsers];
-    next[idx] = { ...next[idx], password: newPassword };
-    setSignupUsers(next);
-    saveSignupUsers(next);
-    return { ok: true };
   };
 
   const logout = () => {
@@ -127,9 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
   };
 
-  if (!hydrated) {
-    return <div className="min-h-screen bg-background" />;
-  }
+  if (!hydrated) return <div className="min-h-screen bg-background" />;
 
   return (
     <AuthContext.Provider value={{

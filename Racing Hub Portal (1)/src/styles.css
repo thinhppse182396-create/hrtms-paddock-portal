@@ -38,7 +38,6 @@
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-hover: var(--sidebar-hover);
 }
-
 :root {
   --radius: 0.5rem;
   /* Page background #F1F5F9 */
@@ -168,4 +167,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-

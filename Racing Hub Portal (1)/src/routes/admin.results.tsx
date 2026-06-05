@@ -7,10 +7,10 @@ import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { raceResults as seed, refereeReports, getHorse, getJockey, getRace, horses, jockeys, races, registrations } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { raceResults as seed, refereeReports, getHorse, getJockey, getRace, horses, jockeys, races, registrations } from "@/data/databaseData";
 import { Plus } from "lucide-react";
-import { isBackendEnabled, publishRace } from "@/lib/backendApi";
+import { deleteRaceResult, isBackendEnabled, publishRace, syncRaceResult } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/admin/results")({ component: ResultPublishing });
 
@@ -35,7 +35,7 @@ const fields: Field[] = [
 ];
 
 function ResultPublishing() {
-  const [rows, setRows, loading] = usePersistentCollection<Result>("admin:results", seed);
+  const [rows, setRows, loading] = useDatabaseCollection<Result>("admin:results", seed);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Result | null>(null);
@@ -57,20 +57,23 @@ function ResultPublishing() {
     setRows(d => d.map(r => r.raceId === raceId ? { ...r, published: true } : r));
     toast.success("Results published", { description: raceId });
   };
-  const upsert = (v: any) => {
+  const upsert = async (v: any) => {
     const result: Result = {
+      backendId: editing?.backendId,
       raceId: v.raceId, horseId: v.horseId, jockeyId: v.jockeyId,
       rank: Number(v.rank), finishTime: v.finishTime,
       disqualified: String(v.disqualified) === "true",
       published: editing?.published ?? false,
     };
     const isEdit = !!editing;
+    await syncRaceResult(result);
     setRows(rs => isEdit ? rs.map(x => x === editing ? result : x) : [...rs, result]);
     setQ(""); setRaceFilter("");
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Result updated" : "Result added", { description: `${result.raceId} • rank #${result.rank}` });
   };
-  const remove = (r: Result) => {
+  const remove = async (r: Result) => {
+    if (r.backendId) await deleteRaceResult(r.backendId);
     setRows(rs => rs.filter(x => x !== r));
     setDeleting(null);
     toast.success("Result deleted", { description: `${r.raceId} • ${getHorse(r.horseId)?.name}` });
@@ -193,7 +196,7 @@ function ResultPublishing() {
         title="Delete result?"
         message={`Remove result for ${deleting && getHorse(deleting.horseId)?.name}?`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove(deleting)}
+        onConfirm={() => deleting && void remove(deleting)}
       />
     </div>
   );

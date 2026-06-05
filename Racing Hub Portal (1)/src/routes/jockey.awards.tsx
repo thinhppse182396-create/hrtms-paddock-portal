@@ -3,13 +3,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { raceResults, getRace, getHorse, awardCeremonies } from "@/data/mockData";
+import { jockeys, raceResults, getRace, getHorse, awardCeremonies } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
 import { Trophy, DollarSign, Medal } from "lucide-react";
 
 export const Route = createFileRoute("/jockey/awards")({ component: JockeyAwards });
 
 function JockeyAwards() {
-  const myJockeyId = "J001";
+  const { currentUser } = useAuth();
+  const myJockeyId = jockeys.find(jockey => jockey.accountId === currentUser?.accountId)?.id ?? "";
   const myWinnings = raceResults
     .filter(r => r.jockeyId === myJockeyId)
     .map(r => {

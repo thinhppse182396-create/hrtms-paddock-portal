@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatCard } from "@/components/common/StatCard";
-import { raceResults, violations, getHorse, getRace } from "@/data/mockData";
+import { jockeys, raceResults, violations, getHorse, getRace } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
 import { Trophy, Medal, Timer } from "lucide-react";
 
 export const Route = createFileRoute("/jockey/performance")({ component: PerformanceHistory });
 
 function PerformanceHistory() {
-  const myJockeyId = "J001";
+  const { currentUser } = useAuth();
+  const myJockeyId = jockeys.find(jockey => jockey.accountId === currentUser?.accountId)?.id ?? "";
   const results = raceResults.filter(r => r.jockeyId === myJockeyId);
   const wins = results.filter(r => r.rank === 1).length;
   const top3 = results.filter(r => r.rank <= 3).length;

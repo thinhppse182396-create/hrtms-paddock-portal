@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
-import { horses, raceResults, violations } from "@/data/mockData";
+import { horses, raceResults, violations } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/owner/horse-performance")({ component: HorsePerformance });
 
 function HorsePerformance() {
-  const myHorses = horses.filter(h => h.ownerId === "O001");
+  const { currentUser } = useAuth();
+  const myHorses = horses.filter(h => h.ownerId === currentUser?.accountId);
 
   return (
     <div>

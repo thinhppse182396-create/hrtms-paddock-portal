@@ -6,13 +6,14 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { horses as seed, type Horse } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { horses as seed, type Horse } from "@/data/databaseData";
 import { Plus } from "lucide-react";
+import { addLocalDays, toLocalDateString } from "@/lib/dateTime";
+import { useAuth } from "@/auth/AuthContext";
+import { deleteHorse, syncHorse } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/owner/my-horses")({ component: MyHorses });
-
-const OWNER_ID = "O001";
 
 const fields: Field[] = [
   { name: "name", label: "Horse name", required: true, full: true },
@@ -26,18 +27,20 @@ const fields: Field[] = [
 ];
 
 function MyHorses() {
-  const [rows, setRows, loading] = usePersistentCollection<Horse>("owner:horses", seed);
+  const [rows, setRows, loading] = useDatabaseCollection<Horse>("owner:horses", seed);
+  const { currentUser } = useAuth();
+  const ownerId = currentUser?.accountId ?? "";
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Horse | null>(null);
 
-  const myHorses = useMemo(() => rows.filter(h => h.ownerId === OWNER_ID), [rows]);
+  const myHorses = useMemo(() => rows.filter(h => h.ownerId === ownerId), [rows, ownerId]);
 
   const nextId = () => {
     const max = rows.reduce((m, h) => Math.max(m, Number(h.id.replace(/\D/g, "")) || 0), 0);
     return `H${String(max + 1).padStart(3, "0")}`;
   };
 
-  const addHorse = (v: any) => {
+  const addHorse = async (v: any) => {
     const id = nextId();
     const horse: Horse = {
       id,
@@ -45,7 +48,7 @@ function MyHorses() {
       breed: v.breed,
       age: Number(v.age),
       weight: Number(v.weight),
-      ownerId: OWNER_ID,
+      ownerId,
       healthCertExpiry: v.healthCertExpiry,
       status: v.status,
       color: v.color || "—",
@@ -55,15 +58,17 @@ function MyHorses() {
       microchipId: `MC-${id}`,
       bio: "Newly registered horse.",
       documents: [
-        { type: "Health Certificate", number: `HC-${id}`, issuedBy: "National Equine Vet Board", issuedDate: new Date().toISOString().slice(0, 10), expiryDate: v.healthCertExpiry },
+        { type: "Health Certificate", number: `HC-${id}`, issuedBy: "National Equine Vet Board", issuedDate: toLocalDateString(), expiryDate: v.healthCertExpiry },
       ],
     };
+    await syncHorse(horse);
     setRows(rs => [...rs, horse]);
     setCreating(false);
     toast.success("Horse added", { description: `${horse.name} (${horse.id})` });
   };
 
-  const remove = (h: Horse) => {
+  const remove = async (h: Horse) => {
+    await deleteHorse(h.id);
     setRows(rs => rs.filter(x => x.id !== h.id));
     setDeleting(null);
     toast.success("Horse removed", { description: h.name });
@@ -104,13 +109,16 @@ function MyHorses() {
         open={creating}
         title="Add New Horse"
         fields={fields}
-        initial={{ status: "Eligible" } as any}
+        initial={{ status: "Eligible", healthCertExpiry: addLocalDays(180) } as any}
         onClose={() => setCreating(false)}
         onSubmit={addHorse}
         validate={(v: any) => {
           const e: Record<string, string> = {};
           if (Number(v.age) < 2 || Number(v.age) > 20) e.age = "Age must be 2–20";
           if (Number(v.weight) < 400 || Number(v.weight) > 600) e.weight = "Weight must be 400–600kg";
+          if (v.status === "Eligible" && v.healthCertExpiry < toLocalDateString()) {
+            e.healthCertExpiry = "An eligible horse must have a current health certificate";
+          }
           return Object.keys(e).length ? e : null;
         }}
       />
@@ -119,7 +127,7 @@ function MyHorses() {
         title="Remove horse?"
         message={`Remove "${deleting?.name}" from your stable?`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove(deleting)}
+        onConfirm={() => deleting && void remove(deleting)}
       />
     </div>
   );

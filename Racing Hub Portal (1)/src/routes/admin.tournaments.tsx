@@ -7,11 +7,11 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { tournaments as seed, races } from "@/data/mockData";
-import { saveTournament } from "@/lib/mockApi";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { tournaments as seed, races } from "@/data/databaseData";
 import { tracks, trackHasConflict, type TrackReservation } from "@/lib/racing";
-import { deleteTournament, isBackendEnabled, syncTournament } from "@/lib/backendApi";
+import { deleteTournament, syncTournament } from "@/lib/backendApi";
+import { addLocalDays, toLocalDateString } from "@/lib/dateTime";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/tournaments")({ component: TournamentManagement });
@@ -29,8 +29,8 @@ const baseFields: Field[] = [
 ];
 
 function TournamentManagement() {
-  const [rows, setRows, loading] = usePersistentCollection<Tournament>("admin:tournaments", seed);
-  const [trackList] = usePersistentCollection("admin:tracks", tracks);
+  const [rows, setRows, loading] = useDatabaseCollection<Tournament>("admin:tournaments", seed);
+  const [trackList] = useDatabaseCollection("admin:tracks", tracks);
 
   const fields: Field[] = useMemo(() => baseFields.map(f =>
     f.name === "trackId"
@@ -57,23 +57,18 @@ function TournamentManagement() {
 
   const upsert = async (v: Tournament) => {
     const isEdit = rows.some(x => x.id === v.id);
-    await saveTournament({ id: v.id }, { existing: rows, editingId: isEdit ? v.id : undefined });
-    if (isBackendEnabled()) {
-      await syncTournament(v, isEdit);
-    }
+    await syncTournament(v, isEdit);
     setRows(r => isEdit ? r.map(x => x.id === v.id ? v : x) : [...r, v]);
     setQ(""); setSeason(""); setStatus("");
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Tournament updated" : "Tournament created", { description: `${v.id} — ${v.name}` });
   };
   const remove = async (t: Tournament) => {
-    if (isBackendEnabled()) {
-      try {
-        await deleteTournament(t.id);
-      } catch (error: any) {
-        toast.error("Cannot delete tournament", { description: error?.message });
-        return;
-      }
+    try {
+      await deleteTournament(t.id);
+    } catch (error: any) {
+      toast.error("Cannot delete tournament", { description: error?.message });
+      return;
     }
     setRows(r => r.filter(x => x.id !== t.id));
     setDeleting(null);
@@ -121,13 +116,18 @@ function TournamentManagement() {
         open={creating || !!editing}
         title={editing ? "Edit Tournament" : "Create Tournament"}
         fields={fields}
-        initial={editing ?? { id: `T${String(rows.length + 1).padStart(3, "0")}` }}
+        initial={editing ?? { id: `T${String(rows.length + 1).padStart(3, "0")}`, status: "Draft", startDate: toLocalDateString(), endDate: addLocalDays(14) }}
         onClose={() => { setCreating(false); setEditing(null); }}
         onSubmit={upsert}
         validate={(v) => {
           const e: Record<string, string> = {};
           if (v.startDate && v.endDate && v.startDate > v.endDate) {
             e.endDate = "End date must be on or after start date";
+          }
+          if (v.startDate &&
+              v.startDate < toLocalDateString() &&
+              (!editing || v.startDate !== editing.startDate)) {
+            e.startDate = "Tournament start date cannot be in the past";
           }
           if (!/^T\d{3,}$/.test(String(v.id || ""))) e.id = "ID must look like T001";
           if (!editing && rows.some(x => x.id === v.id)) e.id = "ID already exists";

@@ -33,6 +33,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<RaceResults> RaceResults { get; set; }
     public DbSet<Tracks> Tracks { get; set; }
     public DbSet<Rounds> Rounds { get; set; }
+    public DbSet<ViolationRecord> Violations { get; set; }
+    public DbSet<RefereeReport> RefereeReports { get; set; }
+    public DbSet<AwardCeremony> AwardCeremonies { get; set; }
+    public DbSet<PreRaceCheck> PreRaceChecks { get; set; }
+    public DbSet<RaceControlState> RaceControlStates { get; set; }
+    public DbSet<Prediction> Predictions { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -109,6 +115,14 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Registration>()
             .HasIndex(registration => new { registration.RaceId, registration.HorseId })
             .IsUnique();
+
+        modelBuilder.Entity<Prediction>()
+            .HasIndex(prediction => new { prediction.AccountId, prediction.RaceId, prediction.HorseId })
+            .IsUnique();
+
+        modelBuilder.Entity<Prediction>()
+            .Property(prediction => prediction.Payout)
+            .HasPrecision(18, 2);
 
         //modelBuilder.Entity<Feedback>()
         //    .HasOne(f => f.Status)

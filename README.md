@@ -18,6 +18,12 @@ dotnet run --project HRTMS
 Ở môi trường Development, backend tự chạy migration và seed dữ liệu demo.
 Health check: `http://localhost:5199/api/health`.
 
+Smoke-test nhanh sau khi backend chạy:
+
+```powershell
+.\scripts\smoke-api.ps1
+```
+
 Nếu SDK không nhận `HRTMS.slnx`, build trực tiếp project:
 
 ```powershell
@@ -29,15 +35,14 @@ dotnet build HRTMS\HRTMS.csproj -c Release
 ```powershell
 cd "Racing Hub Portal (1)"
 npm install
-Copy-Item .env.example .env
 npm run dev
 ```
 
-Frontend mở tại `http://localhost:5173`.
+Frontend mở tại `http://localhost:8080`.
 
-- Có `.env` với `VITE_API_URL=http://localhost:5199`: login và các thao tác
+- `.env` mặc định có `VITE_API_URL=http://localhost:5199`: login và các thao tác
   Tracks, Tournaments, Races, Registrations, Publish Result đồng bộ sang API.
-- Không có `VITE_API_URL`: portal vẫn chạy local demo bằng mock data và
+- Bỏ `VITE_API_URL`: portal vẫn chạy local demo bằng mock data và
   `localStorage`.
 
 Các script Vite và Vitest đã có wrapper cho trường hợp workspace Windows chứa
@@ -61,8 +66,8 @@ ký tự `#`, ví dụ `D:\C#\...`.
 - `GET, POST, PUT, DELETE /api/tournaments`
 - `GET, POST, PUT, DELETE /api/horses`
 - `GET, POST, PUT, DELETE /api/races`
-- `GET, POST, PATCH /api/registrations`
-- `GET, POST, PUT /api/race-results`
+- `GET, POST /api/registrations`, `PATCH /api/registrations/{id}/status`
+- `GET /api/race-results/{raceId}`, `POST /api/race-results`, `PUT /api/race-results/{id}`
 - `GET, POST, PUT /api/awards`
 - `GET, POST, PUT, DELETE /api/rounds`
 - `GET, POST, PUT, DELETE /api/referee-panels`

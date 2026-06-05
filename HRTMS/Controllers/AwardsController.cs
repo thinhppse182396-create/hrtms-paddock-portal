@@ -1,107 +1,41 @@
-using HRTMS.Data;
-using HRTMS.Models.on_board;
+using HRTMS.Models.DTOs;
+using HRTMS.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace HRTMS.Controllers;
 
 [ApiController]
 [Route("awards")]
 [Route("api/awards")]
-public class AwardsController : ControllerBase
+public class AwardsController : ApiControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IAwardService _awardService;
 
-    public AwardsController(ApplicationDbContext context)
+    public AwardsController(IAwardService awardService)
     {
-        _context = context;
+        _awardService = awardService;
     }
 
     [HttpGet("{raceId}")]
-    public async Task<ActionResult<IEnumerable<AwardResponse>>> GetAwards(string raceId)
+    public async Task<ActionResult<IReadOnlyList<AwardResponse>>> GetAwards(string raceId)
     {
-        if (!await _context.Races.AnyAsync(race => race.RaceID == raceId))
-        {
-            return NotFound(new { message = "Race does not exist." });
-        }
-
-        var awards = await _context.Awards
-            .AsNoTracking()
-            .Where(award => award.RaceID == raceId)
-            .OrderBy(award => award.Rank)
-            .Select(award => new AwardResponse(
-                award.Id,
-                award.RaceID,
-                award.Rank,
-                award.PriceMoney))
-            .ToListAsync();
-
-        return Ok(awards);
+        var result = await _awardService.GetAwardsAsync(raceId);
+        return ToActionResult(result);
     }
 
     [HttpPost]
     public async Task<ActionResult<AwardResponse>> CreateAward(CreateAwardRequest request)
     {
-        if (!await _context.Races.AnyAsync(race => race.RaceID == request.RaceId))
-        {
-            return NotFound(new { message = "Race does not exist." });
-        }
-
-        if (await _context.Awards.AnyAsync(award =>
-            award.RaceID == request.RaceId &&
-            award.Rank == request.Rank))
-        {
-            return Conflict(new { message = "An award for this race and rank already exists." });
-        }
-
-        var award = new Awards
-        {
-            RaceID = request.RaceId,
-            Rank = request.Rank,
-            PriceMoney = request.PriceMoney
-        };
-
-        _context.Awards.Add(award);
-        await _context.SaveChangesAsync();
-
-        var response = new AwardResponse(
-            award.Id,
-            award.RaceID,
-            award.Rank,
-            award.PriceMoney);
-
-        return CreatedAtAction(nameof(GetAwards), new { raceId = award.RaceID }, response);
+        var result = await _awardService.CreateAwardAsync(request);
+        return result.Status == ServiceResultStatus.Created
+            ? CreatedAtAction(nameof(GetAwards), new { raceId = result.Value!.RaceId }, result.Value)
+            : ToActionResult(result);
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<AwardResponse>> UpdateAward(int id, UpdateAwardRequest request)
     {
-        var award = await _context.Awards.FindAsync(id);
-        if (award is null)
-        {
-            return NotFound();
-        }
-
-        award.PriceMoney = request.PriceMoney;
-        await _context.SaveChangesAsync();
-
-        return Ok(new AwardResponse(award.Id, award.RaceID, award.Rank, award.PriceMoney));
+        var result = await _awardService.UpdateAwardAsync(id, request);
+        return ToActionResult(result);
     }
-
-    public record CreateAwardRequest(
-        [Required] string RaceId,
-        [Range(1, int.MaxValue)] int Rank,
-        [Range(typeof(decimal), "0.01", "9999999999999999.99")]
-        decimal PriceMoney);
-
-    public record UpdateAwardRequest(
-        [Range(typeof(decimal), "0.01", "9999999999999999.99")]
-        decimal PriceMoney);
-
-    public record AwardResponse(
-        int Id,
-        string RaceId,
-        int Rank,
-        decimal PriceMoney);
 }

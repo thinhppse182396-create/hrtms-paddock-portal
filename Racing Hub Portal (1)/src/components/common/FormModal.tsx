@@ -4,7 +4,7 @@ import { Button } from "./Button";
 export type Field = {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "select" | "textarea" | "tags";
+  type?: "text" | "password" | "number" | "date" | "select" | "textarea" | "tags";
   options?: { label: string; value: string }[];
   placeholder?: string;
   required?: boolean;

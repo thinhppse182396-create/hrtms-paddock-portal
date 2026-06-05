@@ -6,16 +6,20 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { StatCard } from "@/components/common/StatCard";
 import { Target, Trophy, Coins, Sparkles, Radio } from "lucide-react";
-import { races, raceResults as resultSeed, registrations, getHorse, getRace, getJockey } from "@/data/mockData";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
+import { races, raceResults as resultSeed, registrations, predictions as predictionSeed, systemUsers, getHorse, getRace, getJockey } from "@/data/databaseData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
 import { getCommitment, guaranteedMinimum, actualPrizePool, prizeBreakdown } from "@/lib/racing";
-import { loadRaceControl } from "@/lib/raceControlStore";
+import { loadRaceControl, type RaceControlState } from "@/lib/raceControlStore";
 import { useAuth } from "@/auth/AuthContext";
+import { parseLocalDateTime } from "@/lib/dateTime";
+import { createPrediction } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/spectator/predictions")({ component: PredictionsPage });
 
 interface Prediction {
   id: string;
+  backendId?: number;
+  accountId: string;
   raceId: string;
   horseId: string;
   predictedRank: number;
@@ -23,12 +27,6 @@ interface Prediction {
   payout: number;     // money won (USD) — 100% / 30% / 0% of race top prize
   createdAt: string;
 }
-
-const initialBoard = [
-  { user: "Mia Tran", payout: 32000 },
-  { user: "Chen Wu", payout: 41000 },
-  { user: "Jordan Lee", payout: 18000 },
-];
 
 type ResultRow = (typeof resultSeed)[number];
 
@@ -51,36 +49,27 @@ function PredictionsPage() {
   const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" />;
 
-  const [results] = usePersistentCollection<ResultRow>("admin:results", resultSeed);
-
-  const storageKey = `predictions:${currentUser.username}`;
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [results] = useDatabaseCollection<ResultRow>("admin:results", resultSeed);
+  const [databasePredictions] = useDatabaseCollection<Prediction>("spectator:predictions", predictionSeed);
   const [form, setForm] = useState({ raceId: "", horseId: "", predictedRank: 1 });
   const [err, setErr] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [control, setControl] = useState<RaceControlState | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      const saved = raw ? (JSON.parse(raw) as Prediction[]) : [];
-      setPredictions(saved.map(p => settle(p, results)));
-    } catch { /* ignore */ }
-    setHydrated(true);
-  }, [storageKey]);
+    if (!form.raceId) {
+      setControl(null);
+      return;
+    }
+    void loadRaceControl(form.raceId).then(setControl);
+  }, [form.raceId]);
 
-  // Re-settle pending predictions when results change.
-  useEffect(() => {
-    if (!hydrated) return;
-    setPredictions(prev => prev.map(p => settle(p, results)));
-  }, [results, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try { window.localStorage.setItem(storageKey, JSON.stringify(predictions)); } catch { /* ignore */ }
-  }, [predictions, hydrated, storageKey]);
-
-
+  const predictions = useMemo(
+    () => databasePredictions
+      .filter(prediction => prediction.accountId === currentUser.accountId)
+      .map(prediction => settle(prediction, results)),
+    [currentUser.accountId, databasePredictions, results],
+  );
   const myPayout = predictions.reduce((s, p) => s + p.payout, 0);
   const wins = predictions.filter(p => p.status === "Won").length;
 
@@ -97,41 +86,55 @@ function PredictionsPage() {
       .filter(x => x.horse);
   }, [form.raceId]);
 
-  const submit = () => {
+  const submit = async () => {
     setErr(null);
     if (!form.raceId || !form.horseId) return setErr("Select a race and a horse");
     if (form.predictedRank < 1 || form.predictedRank > 10) return setErr("Rank must be 1–10");
     const race = getRace(form.raceId);
     if (!race) return setErr("Race not found");
     if (race.status === "Cancelled") return setErr("Race was cancelled");
+    const raceStart = parseLocalDateTime(race.date, race.time);
+    if (race.status !== "Scheduled" || !raceStart || raceStart.getTime() <= Date.now()) {
+      return setErr("Predictions close when the race starts");
+    }
     const dup = predictions.find(p => p.raceId === form.raceId && p.horseId === form.horseId && p.status === "Pending");
     if (dup) return setErr("You already have a pending prediction for this horse");
 
-    const draft: Prediction = {
-      id: `P${(predictions.length + 1).toString().padStart(3, "0")}`,
+    await createPrediction({
+      accountId: currentUser.accountId,
       raceId: form.raceId,
       horseId: form.horseId,
       predictedRank: Number(form.predictedRank),
-      status: "Pending",
-      payout: 0,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    const settled = settle(draft, results);
-    setPredictions(p => [settled, ...p]);
+    });
     setToast(`Prediction saved · ${getHorse(form.horseId)?.name} → rank ${form.predictedRank}`);
     setTimeout(() => setToast(null), 2500);
     setForm({ raceId: "", horseId: "", predictedRank: 1 });
   };
 
-  // Combined leaderboard (mock + me) ordered by payout (USD)
-  const leaderboard = [...initialBoard, { user: currentUser.name, payout: myPayout }]
-    .sort((a, b) => b.payout - a.payout);
+  const leaderboard = Object.values(databasePredictions.map(prediction => settle(prediction, results)).reduce(
+    (board, prediction) => {
+      const entry = board[prediction.accountId] ?? {
+        user: systemUsers.find(user => user.id === prediction.accountId)?.name ?? prediction.accountId,
+        payout: 0,
+      };
+      entry.payout += prediction.payout;
+      board[prediction.accountId] = entry;
+      return board;
+    },
+    {} as Record<string, { user: string; payout: number }>,
+  ));
+  if (!leaderboard.some(entry => entry.user === currentUser.name)) {
+    leaderboard.push({ user: currentUser.name, payout: myPayout });
+  }
+  leaderboard.sort((a, b) => b.payout - a.payout);
 
-  // Only races a user can predict: not cancelled
-  const predictableRaces = races.filter(r => r.status !== "Cancelled");
+  // Only future scheduled races can receive predictions.
+  const predictableRaces = races.filter(r => {
+    const raceStart = parseLocalDateTime(r.date, r.time);
+    return r.status === "Scheduled" && !!raceStart && raceStart.getTime() > Date.now();
+  });
 
   // Official results + prize distribution for the selected race
-  const control = form.raceId ? loadRaceControl(form.raceId) : null;
   const officialResults = useMemo(() => {
     if (!form.raceId) return [];
     return results

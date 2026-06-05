@@ -1,7 +1,6 @@
 import { Link, Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useAuth, getDashboardPathByRole } from "./AuthContext";
-import type { Role } from "@/data/mockUsers";
+import { useAuth, getDashboardPathByRole, type Role } from "./AuthContext";
 import { ShieldAlert, LogOut, ArrowRight } from "lucide-react";
 
 export function ProtectedRoute({ allowedRoles, children }: { allowedRoles: Role[]; children: ReactNode }) {

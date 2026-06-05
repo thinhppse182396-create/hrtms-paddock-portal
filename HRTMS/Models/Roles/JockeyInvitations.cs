@@ -19,5 +19,7 @@ namespace HRTMS.Models.Roles
         public int StatusId { get; set; }
         [ForeignKey(nameof(StatusId))]
         public Status? Status { get; set; }
+
+        public DateTime CreatedAt { get; set; }
     }
 }

@@ -1,8 +1,7 @@
 import { LogOut, UserCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth, type Role } from "@/auth/AuthContext";
 import { NotificationBell } from "@/lib/notifications";
-import type { Role } from "@/data/mockUsers";
 
 const envName: Record<Role, string> = {
   ADMIN: "Admin Environment",

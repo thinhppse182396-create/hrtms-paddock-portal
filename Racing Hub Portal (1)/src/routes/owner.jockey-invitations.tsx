@@ -6,20 +6,23 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { jockeys, jockeyInvitations as inviteSeed, horses as horseSeed, races, getHorse, getRace, type Horse } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { jockeys, jockeyInvitations as inviteSeed, horses as horseSeed, races, registrations, getHorse, getRace, type Horse } from "@/data/databaseData";
 import { ArrowDownUp } from "lucide-react";
+import { parseLocalDateTime } from "@/lib/dateTime";
+import { useAuth } from "@/auth/AuthContext";
+import { createJockeyInvitations } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/owner/jockey-invitations")({ component: JockeyInvitation });
-
-const OWNER_ID = "O001";
 
 type Invite = (typeof inviteSeed)[number] & { note?: string };
 type SortKey = "ranking" | "weight" | "name";
 
 function JockeyInvitation() {
-  const [allInvites, setAllInvites] = usePersistentCollection<Invite>("owner:jockeyInvitations", inviteSeed as Invite[]);
-  const [allHorses] = usePersistentCollection<Horse>("owner:horses", horseSeed);
+  const [allInvites] = useDatabaseCollection<Invite>("owner:jockeyInvitations", inviteSeed as Invite[]);
+  const { currentUser } = useAuth();
+  const ownerId = currentUser?.accountId ?? "";
+  const [allHorses] = useDatabaseCollection<Horse>("owner:horses", horseSeed);
   const [sortKey, setSortKey] = useState<SortKey>("ranking");
   const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Inactive">("Active");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -28,9 +31,12 @@ function JockeyInvitation() {
   const [selectedRace, setSelectedRace] = useState("");
   const [note, setNote] = useState("");
 
-  const invites = useMemo(() => allInvites.filter(i => i.ownerId === OWNER_ID), [allInvites]);
-  const myHorses = useMemo(() => allHorses.filter(h => h.ownerId === OWNER_ID && h.status === "Eligible"), [allHorses]);
-  const upcomingRaces = races.filter(r => r.status === "Scheduled");
+  const invites = useMemo(() => allInvites.filter(i => i.ownerId === ownerId), [allInvites, ownerId]);
+  const myHorses = useMemo(() => allHorses.filter(h => h.ownerId === ownerId && h.status === "Eligible"), [allHorses, ownerId]);
+  const upcomingRaces = races.filter(r => {
+    const start = parseLocalDateTime(r.date, r.time);
+    return r.status === "Scheduled" && !!start && start.getTime() - Date.now() > 24 * 3_600_000;
+  });
 
   const sortedJockeys = useMemo(() => {
     const filtered = jockeys.filter(j => statusFilter === "All" || j.status === statusFilter);
@@ -49,19 +55,22 @@ function JockeyInvitation() {
     setInviteOpen(true);
   };
 
-  const sendInvite = () => {
+  const sendInvite = async () => {
     if (!targetJockey || !selectedHorse || !selectedRace) return;
-    const max = allInvites.reduce((m, i) => Math.max(m, Number(String(i.id).replace(/\D/g, "")) || 0), 0);
-    setAllInvites(prev => [...prev, {
-      id: `INV${String(max + 1).padStart(3, "0")}`,
-      jockeyId: targetJockey.id,
-      ownerId: OWNER_ID,
-      horseId: selectedHorse,
-      raceId: selectedRace,
-      status: "Waiting",
-      sentAt: new Date().toISOString().slice(0, 10),
-      note,
-    }]);
+    const registration = registrations.find(item =>
+      item.ownerId === ownerId &&
+      item.horseId === selectedHorse &&
+      item.raceId === selectedRace &&
+      item.status === "Approved" &&
+      (item.jockeyId === targetJockey.id || item.backupJockeyId === targetJockey.id),
+    );
+    if (!registration) {
+      toast.error("Create an approved registration first", {
+        description: "The backend creates invitations for the primary and backup jockeys on an approved entry.",
+      });
+      return;
+    }
+    await createJockeyInvitations(registration.id);
     setInviteOpen(false);
     toast.success("Invitation sent", { description: `${targetJockey.name}` });
   };
@@ -118,7 +127,7 @@ function JockeyInvitation() {
         rows={invites}
       />
 
-      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title={targetJockey ? `Invite ${targetJockey.name}` : "Invite jockey"} onConfirm={sendInvite} confirmLabel="Send Invitation">
+      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title={targetJockey ? `Invite ${targetJockey.name}` : "Invite jockey"} onConfirm={() => void sendInvite()} confirmLabel="Send Invitation">
         <div className="space-y-3 text-sm">
           <div>
             <label className="text-xs text-muted-foreground">Horse</label>

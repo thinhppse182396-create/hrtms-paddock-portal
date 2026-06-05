@@ -4,20 +4,14 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { StatCard } from "@/components/common/StatCard";
 import { Button } from "@/components/common/Button";
-import { getHorse, raceResults, violations, getRace, getJockey, races, awardCeremonies } from "@/data/mockData";
+import { getHorse, raceResults, violations, getRace, getJockey, races, awardCeremonies } from "@/data/databaseData";
 import { FileText, Trophy, Flag, AlertTriangle, ChevronLeft, Download } from "lucide-react";
 
 export const Route = createFileRoute("/owner/horse/$horseId")({ component: HorseDetailPage });
 
 function HorseDetailPage() {
   const { horseId } = useParams({ from: "/owner/horse/$horseId" });
-  let horse = getHorse(horseId);
-  if (!horse && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem("owner:horses");
-      if (raw) horse = (JSON.parse(raw) as typeof horse[]).find((h: any) => h?.id === horseId) ?? undefined;
-    } catch { /* ignore */ }
-  }
+  const horse = getHorse(horseId);
 
   if (!horse) {
     return (

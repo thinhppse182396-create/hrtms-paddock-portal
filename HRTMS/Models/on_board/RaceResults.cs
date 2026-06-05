@@ -14,7 +14,13 @@ namespace HRTMS.Models.on_board
         public string HorseId { get; set; } = string.Empty;
         [ForeignKey("HorseId")] public Horse? Horses { get; set; }
 
+        public string? JockeyId { get; set; }
+        [ForeignKey(nameof(JockeyId))] public HRTMS.Models.Roles.Jockeys? Jockey { get; set; }
+
         public int Rank { get; set; }
+        public string FinishTime { get; set; } = string.Empty;
+        public bool Disqualified { get; set; }
+        public bool Published { get; set; }
         public string Violation { get; set; } = string.Empty;
         public decimal? PrizeMoney { get; set; }
     }

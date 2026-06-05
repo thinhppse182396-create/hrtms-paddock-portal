@@ -4,16 +4,19 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { races, refereeAssignments, refereeReports, violations } from "@/data/mockData";
+import { races, referees, refereeAssignments, refereeReports, violations } from "@/data/databaseData";
+import { toLocalDateString } from "@/lib/dateTime";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/referee/dashboard")({ component: RefereeDashboard });
 
 function RefereeDashboard() {
-  const myRefId = "RF001";
+  const { currentUser } = useAuth();
+  const myRefId = referees.find(referee => referee.accountId === currentUser?.accountId)?.id ?? "";
   const myRaceIds = refereeAssignments.filter(a => a.refereeId === myRefId).map(a => a.raceId);
   const assignedRaces = races.filter(r => myRaceIds.includes(r.id));
   const myReports = refereeReports.filter(r => r.refereeId === myRefId);
-  const today = "2026-04-10";
+  const today = toLocalDateString();
 
   return (
     <div>

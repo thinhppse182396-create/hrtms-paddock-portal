@@ -1,0 +1,155 @@
+# HRTMS - Horse Racing Tournament Management System
+
+## Thong tin du an
+
+HRTMS la he thong quan ly giai dau dua ngua, ho tro van hanh cac nghiep vu chinh tu quan tri giai dau, duong dua, ngua dua, cuoc dua, dang ky tham gia, phan cong trong tai, ghi nhan ket qua den trao giai.
+
+Du an gom hai phan chinh:
+
+- `HRTMS/`: backend ASP.NET Core cung cap API, xu ly nghiep vu va ket noi co so du lieu.
+- `Racing Hub Portal (1)/`: frontend TanStack Start cho cac cong thong tin theo tung vai tro nguoi dung.
+
+## Vai tro nguoi dung
+
+He thong duoc thiet ke theo nhieu vai tro:
+
+- Admin: quan ly nguoi dung, duong dua, giai dau, vong dau, cuoc dua, dang ky, ket qua, giai thuong va nhat ky he thong.
+- Referee: theo doi cuoc dua duoc phan cong, kiem tra truoc cuoc dua, ghi nhan ket qua, bao cao va vi pham.
+- Horse Owner: quan ly ngua, dang ky tham gia cuoc dua, theo doi loi moi jockey va thanh tich ngua.
+- Jockey: xem lich thi dau, chi tiet cuoc dua, loi moi, ho so va thanh tich ca nhan.
+- Spectator: xem lich dua, ket qua, bang xep hang, du doan, giai thuong va man hinh theo doi.
+
+## Cong nghe su dung
+
+Backend:
+
+- .NET 8
+- ASP.NET Core MVC/API
+- Entity Framework Core 8
+- SQL Server
+- ASP.NET Core Identity password hashing
+- CORS cho frontend local
+- EF Core Migrations
+
+Frontend:
+
+- React 19
+- TypeScript
+- TanStack Start
+- TanStack Router
+- TanStack React Query
+- Vite
+- Tailwind CSS
+- Lucide React
+- Recharts
+- Sonner
+- Vitest
+
+Cong cu va cau hinh:
+
+- PowerShell scripts cho smoke test API
+- ESLint va Prettier
+- `global.json` de khoa phien ban .NET SDK neu can
+- `wrangler.jsonc` cho cau hinh moi truong frontend neu trien khai len Cloudflare
+
+## Chuc nang chinh
+
+- Dang nhap theo vai tro.
+- Quan ly users, roles va trang thai tai khoan.
+- Quan ly ngua, chu ngua, jockey va trong tai.
+- Quan ly tracks, tournaments, rounds va races.
+- Dang ky ngua tham gia cuoc dua.
+- Phan cong ban trong tai va dieu khien cuoc dua.
+- Ghi nhan ket qua, xep hang va tien thuong.
+- Quan ly awards va ceremony.
+- Theo doi audit log va du lieu dashboard.
+- Cung cap API health check.
+
+## Cau truc thu muc
+
+```text
+.
+|-- HRTMS/
+|   |-- Controllers/
+|   |-- Data/
+|   |-- Domain/
+|   |-- Middleware/
+|   |-- Migrations/
+|   |-- Models/
+|   |-- Views/
+|   |-- wwwroot/
+|   |-- Program.cs
+|   `-- HRTMS.csproj
+|-- Racing Hub Portal (1)/
+|   |-- src/
+|   |   |-- auth/
+|   |   |-- components/
+|   |   |-- data/
+|   |   |-- hooks/
+|   |   |-- lib/
+|   |   `-- routes/
+|   |-- package.json
+|   |-- vite.config.ts
+|   `-- tsconfig.json
+|-- scripts/
+|-- HRTMS.slnx
+|-- README.md
+`-- readme.me
+```
+
+## Chay backend
+
+Kiem tra connection string trong `HRTMS/appsettings.json` hoac tham khao `HRTMS/appsettings.example.json`.
+
+```powershell
+dotnet run --project HRTMS
+```
+
+Health check:
+
+```text
+http://localhost:5199/api/health
+```
+
+## Chay frontend
+
+```powershell
+cd "Racing Hub Portal (1)"
+npm install
+npm run dev
+```
+
+Frontend mac dinh chay tai:
+
+```text
+http://localhost:8080
+```
+
+## Kiem tra nhanh
+
+Build backend:
+
+```powershell
+dotnet build HRTMS\HRTMS.csproj -c Release
+```
+
+Smoke test API sau khi backend dang chay:
+
+```powershell
+.\scripts\smoke-api.ps1
+```
+
+Build va test frontend:
+
+```powershell
+cd "Racing Hub Portal (1)"
+npm run build
+npm test
+```
+
+## Ghi chu cau hinh
+
+- Backend su dung SQL Server thong qua `DefaultConnection`.
+- Trong moi truong Development, ung dung co the tu dong apply EF Core migrations neu cau hinh `Database:ApplyMigrationsOnStartup` cho phep.
+- Frontend co the ket noi backend thong qua bien moi truong `VITE_API_URL`.
+- CORS backend dang ho tro cac origin local phu hop cho qua trinh phat trien.

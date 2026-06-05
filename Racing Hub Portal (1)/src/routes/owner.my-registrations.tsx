@@ -6,30 +6,36 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { registrations as regSeed, raceResults as resultSeed, getHorse, getJockey, getRace } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { registrations as regSeed, raceResults as resultSeed, getHorse, getJockey, getRace } from "@/data/databaseData";
+import { useAuth } from "@/auth/AuthContext";
+import { updateRegistrationJockey, updateRegistrationStatus } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/owner/my-registrations")({ component: MyRegistrations });
-
-const OWNER_ID = "O001";
 
 type Reg = (typeof regSeed)[number] & { reason?: string; backupJockeyId?: string };
 type Result = (typeof resultSeed)[number];
 
 function MyRegistrations() {
-  const [allRegs, setAllRegs, loading] = usePersistentCollection<Reg>("admin:registrations", regSeed as Reg[]);
-  const [results] = usePersistentCollection<Result>("admin:results", resultSeed);
+  const [allRegs, setAllRegs, loading] = useDatabaseCollection<Reg>("admin:registrations", regSeed as Reg[]);
+  const { currentUser } = useAuth();
+  const ownerId = currentUser?.accountId ?? "";
+  const [results] = useDatabaseCollection<Result>("admin:results", resultSeed);
   const [viewing, setViewing] = useState<Reg | null>(null);
 
-  const data = useMemo(() => allRegs.filter(r => r.ownerId === OWNER_ID), [allRegs]);
+  const data = useMemo(() => allRegs.filter(r => r.ownerId === ownerId), [allRegs, ownerId]);
 
-  const cancel = (id: string) => {
+  const cancel = async (id: string) => {
+    await updateRegistrationStatus(id, "Cancelled");
     setAllRegs(d => d.map(r => r.id === id ? { ...r, status: "Cancelled" } : r));
     toast.success("Registration cancelled", { description: id });
   };
 
   // Primary jockey sick → promote the backup jockey into the primary slot.
-  const useBackup = (id: string) => {
+  const useBackup = async (id: string) => {
+    const registration = allRegs.find(item => item.id === id);
+    if (!registration?.backupJockeyId) return;
+    await updateRegistrationJockey(id, registration.backupJockeyId);
     setAllRegs(d => d.map(r => {
       if (r.id !== id || !r.backupJockeyId) return r;
       return { ...r, jockeyId: r.backupJockeyId, backupJockeyId: undefined, reason: "Primary jockey sick — backup promoted" };
@@ -59,10 +65,10 @@ function MyRegistrations() {
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => setViewing(r)}>View Result</Button>
               {r.backupJockeyId && (r.status === "Pending" || r.status === "Approved") && (
-                <Button variant="ghost" onClick={() => useBackup(r.id)}>Use Backup Jockey</Button>
+                <Button variant="ghost" onClick={() => void useBackup(r.id)}>Use Backup Jockey</Button>
               )}
               {(r.status === "Pending" || r.status === "Approved") && (
-                <Button variant="danger" onClick={() => cancel(r.id)}>Cancel</Button>
+                <Button variant="danger" onClick={() => void cancel(r.id)}>Cancel</Button>
               )}
             </div>
           )},

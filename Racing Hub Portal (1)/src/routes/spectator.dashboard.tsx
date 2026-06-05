@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { races, jockeys, horses, raceResults, awardCeremonies, getRace, getHorse } from "@/data/mockData";
+import { races, jockeys, horses, raceResults, awardCeremonies, getRace, getHorse } from "@/data/databaseData";
 import { Calendar, Flag, Trophy, Users } from "lucide-react";
 
 export const Route = createFileRoute("/spectator/dashboard")({ component: SpectatorDashboard });

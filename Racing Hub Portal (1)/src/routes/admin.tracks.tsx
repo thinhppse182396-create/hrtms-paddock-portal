@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
 import { tracks as seed, maxLanesForWidth, type Track } from "@/lib/racing";
 import { deleteTrack, isBackendEnabled, syncTrack } from "@/lib/backendApi";
 import { Info, Plus } from "lucide-react";
@@ -21,7 +21,7 @@ const fields: Field[] = [
 ];
 
 function TracksPage() {
-  const [data, setData, loading] = usePersistentCollection<Track>("admin:tracks", seed);
+  const [data, setData, loading] = useDatabaseCollection<Track>("admin:tracks", seed);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Track | null>(null);
   const [deleting, setDeleting] = useState<Track | null>(null);

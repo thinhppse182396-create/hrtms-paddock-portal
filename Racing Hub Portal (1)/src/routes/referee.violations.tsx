@@ -7,9 +7,10 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
-import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { violations as seed, getHorse, getJockey, races, horses, jockeys } from "@/data/mockData";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { violations as seed, getHorse, getJockey, races, horses, jockeys } from "@/data/databaseData";
 import { Plus } from "lucide-react";
+import { deleteViolation, syncViolation } from "@/lib/backendApi";
 
 type Violation = (typeof seed)[number];
 
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/referee/violations")({ component: Violati
 
 function ViolationManagement() {
   // Shared key: Admin / Spectator pages reading `referee:violations` get live updates.
-  const [rows, setRows, loading] = usePersistentCollection<Violation>("referee:violations", seed);
+  const [rows, setRows, loading] = useDatabaseCollection<Violation>("referee:violations", seed);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Violation | null>(null);
   const [deleting, setDeleting] = useState<Violation | null>(null);
@@ -46,14 +47,16 @@ function ViolationManagement() {
     return true;
   }), [rows, q, raceFilter, sev]);
 
-  const upsert = (v: Violation) => {
+  const upsert = async (v: Violation) => {
     const isEdit = !!editing;
+    await syncViolation(v, isEdit);
     setRows(rs => isEdit ? rs.map(x => x.id === editing!.id ? v : x) : [...rs, v]);
     setQ(""); setRaceFilter(""); setSev("");
     setCreating(false); setEditing(null);
     toast.success(isEdit ? "Violation updated" : "Violation recorded", { description: `${v.id} • ${v.type}` });
   };
-  const remove = (v: Violation) => {
+  const remove = async (v: Violation) => {
+    await deleteViolation(v.id);
     setRows(rs => rs.filter(x => x.id !== v.id));
     setDeleting(null);
     toast.success("Violation deleted", { description: v.id });
@@ -113,7 +116,7 @@ function ViolationManagement() {
         title="Delete violation?"
         message={`Remove violation ${deleting?.id}?`}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove(deleting)}
+        onConfirm={() => deleting && void remove(deleting)}
       />
     </div>
   );

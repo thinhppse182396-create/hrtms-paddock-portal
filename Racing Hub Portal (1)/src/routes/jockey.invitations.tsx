@@ -1,28 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { jockeyInvitations as initial, getHorse, getOwner, getRace } from "@/data/mockData";
+import { jockeys, jockeyInvitations as initial, getHorse, getOwner, getRace } from "@/data/databaseData";
+import { parseLocalDateTime } from "@/lib/dateTime";
 import { Eye, CheckCircle2, XCircle, Calendar, MapPin, Trophy, Weight } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
+import { useDatabaseCollection } from "@/hooks/useDatabaseCollection";
+import { acceptJockeyInvitation } from "@/lib/backendApi";
 
 export const Route = createFileRoute("/jockey/invitations")({ component: InvitationManagement });
 
 function InvitationManagement() {
-  const [data, setData] = useState(() => initial.filter(i => i.jockeyId === "J001").map(i => {
+  const { currentUser } = useAuth();
+  const myJockeyId = jockeys.find(jockey => jockey.accountId === currentUser?.accountId)?.id ?? "";
+  const [allInvitations] = useDatabaseCollection("jockey:invitations", initial);
+  const data = useMemo(() => allInvitations.filter(i => i.jockeyId === myJockeyId).map(i => {
     if (i.status !== "Waiting") return i;
     const race = getRace(i.raceId);
     if (!race) return i;
-    const raceStart = new Date(`${race.date}T${race.time || "12:00"}:00`);
-    const hoursUntil = (raceStart.getTime() - Date.now()) / 3_600_000;
-    return hoursUntil < 24 ? { ...i, status: "Expired" } : i;
-  }));
+    const raceStart = parseLocalDateTime(race.date, race.time || "12:00");
+    const hoursUntil = raceStart ? (raceStart.getTime() - Date.now()) / 3_600_000 : 0;
+    return hoursUntil <= 24 ? { ...i, status: "Expired" } : i;
+  }), [allInvitations, myJockeyId]);
   const [viewing, setViewing] = useState<typeof data[number] | null>(null);
 
-  const update = (id: string, status: string) => {
-    setData(d => d.map(r => r.id === id ? { ...r, status } : r));
+  const accept = async (id: string, backendId?: number) => {
+    if (!backendId) return;
+    await acceptJockeyInvitation(backendId);
     setViewing(null);
   };
 
@@ -91,8 +99,7 @@ function InvitationManagement() {
 
             {viewing.status === "Waiting" ? (
               <div className="flex gap-2 justify-end pt-2 border-t border-border">
-                <Button variant="danger" onClick={() => update(viewing.id, "Declined")}><XCircle className="h-4 w-4" /> Decline</Button>
-                <Button onClick={() => update(viewing.id, "Accepted")}><CheckCircle2 className="h-4 w-4" /> Accept</Button>
+                <Button onClick={() => void accept(viewing.id, viewing.backendId)}><CheckCircle2 className="h-4 w-4" /> Accept</Button>
               </div>
             ) : (
               <div className="text-right text-xs text-muted-foreground pt-2 border-t border-border">

@@ -5,13 +5,15 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { races, refereeAssignments, registrations, getTournament, getHorse, getJockey, type Race } from "@/data/mockData";
+import { races, referees, refereeAssignments, registrations, getTournament, getHorse, getJockey, type Race } from "@/data/databaseData";
 import { Eye, MapPin, Calendar, Flag } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 export const Route = createFileRoute("/referee/assigned-races")({ component: AssignedRaces });
 
 function AssignedRaces() {
-  const myRefId = "RF001";
+  const { currentUser } = useAuth();
+  const myRefId = referees.find(referee => referee.accountId === currentUser?.accountId)?.id ?? "";
   const ids = refereeAssignments.filter(a => a.refereeId === myRefId).map(a => a.raceId);
   const rows = races.filter(r => ids.includes(r.id));
   const [viewing, setViewing] = useState<Race | null>(null);
