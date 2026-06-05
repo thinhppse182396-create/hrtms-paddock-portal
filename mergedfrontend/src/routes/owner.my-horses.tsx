@@ -7,7 +7,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { horses as seed, type Horse } from "@/data/mockData";
 import { Plus } from "lucide-react";
 import { Pencil, Trash2, Eye } from "lucide-react";
 
