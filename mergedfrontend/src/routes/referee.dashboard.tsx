@@ -4,7 +4,6 @@ import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { races, refereeAssignments, refereeReports, violations } from "@/data/mockData";
 
 export const Route = createFileRoute("/referee/dashboard")({ component: RefereeDashboard });
 
