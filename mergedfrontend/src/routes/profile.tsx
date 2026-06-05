@@ -4,8 +4,7 @@ import { useAuth, getDashboardPathByRole } from "@/auth/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/common/Button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import type { Role } from "@/data/mockUsers";
-import { mockUsers } from "@/data/mockUsers";
+
 import { toast } from "sonner";
 import {
   LayoutDashboard, Calendar, Trophy, Users, ShieldCheck, FileText, AlertTriangle,
