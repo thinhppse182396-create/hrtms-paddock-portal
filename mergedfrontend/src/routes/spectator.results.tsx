@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/common/Button";
 import { getPublishedRaces, type PublishedRace } from "@/lib/mockApi";
-import { getTournament, getHorse, getJockey, violations } from "@/data/mockData";
 import { Trophy } from "lucide-react";
 
 export const Route = createFileRoute("/spectator/results")({ component: SpectatorPublishedResults });
