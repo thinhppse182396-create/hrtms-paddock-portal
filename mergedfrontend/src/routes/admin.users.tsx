@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { FormModal, ConfirmDialog, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { systemUsers } from "@/data/mockData";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({ component: UserManagement });
