@@ -8,7 +8,6 @@ import { Button } from "@/components/common/Button";
 import { FormModal, ConfirmDialog, DetailModal, type Field } from "@/components/common/FormModal";
 import { TableToolbar } from "@/components/common/TableToolbar";
 import { usePersistentCollection } from "@/hooks/usePersistentCollection";
-import { registrations as seed, getHorse, getJockey, getOwner, horses, jockeys, owners, races } from "@/data/mockData";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/admin/registrations")({ component: RegistrationManagement });
