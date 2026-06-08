@@ -28,7 +28,7 @@ $tracks = Invoke-HrtmsGet "/api/tracks"
 $tournaments = Invoke-HrtmsGet "/api/tournaments"
 $races = Invoke-HrtmsGet "/api/races"
 $registrations = Invoke-HrtmsGet "/api/registrations"
-$results = Invoke-HrtmsGet "/api/race-results/R003"
+$results = Invoke-HrtmsGet "/api/race-results/RACE-DEMO-003"
 
 if ((Get-ItemCount $users) -eq 0 -or
     (Get-ItemCount $tracks) -eq 0 -or
@@ -65,5 +65,5 @@ Write-Host "Tournaments: $(Get-ItemCount $tournaments)"
 Write-Host "Races: $(Get-ItemCount $races)"
 Write-Host "Race schedules: OK"
 Write-Host "Registrations: $(Get-ItemCount $registrations)"
-Write-Host "Results for R003: $(Get-ItemCount $results)"
+Write-Host "Results for RACE-DEMO-003: $(Get-ItemCount $results)"
 Write-Host "Admin login: OK"

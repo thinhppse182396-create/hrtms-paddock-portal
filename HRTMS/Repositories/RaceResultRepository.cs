@@ -44,10 +44,11 @@ public sealed class RaceResultRepository : IRaceResultRepository
 
     public async Task<IReadOnlyList<RaceResultResponse>> GetResponsesByRaceIdAsync(string raceId)
     {
-        return await ProjectResponses(_context.RaceResults.AsNoTracking())
+        return await ProjectResponses(_context.RaceResults
+            .AsNoTracking()
             .Where(result => result.RaceId == raceId)
             .OrderBy(result => result.Rank)
-            .ThenBy(result => result.Id)
+            .ThenBy(result => result.Id))
             .ToListAsync();
     }
 
@@ -121,8 +122,10 @@ public sealed class RaceResultRepository : IRaceResultRepository
 
     public Task<RaceResultResponse?> GetResponseByIdAsync(int id)
     {
-        return ProjectResponses(_context.RaceResults.AsNoTracking())
-            .SingleOrDefaultAsync(result => result.Id == id);
+        return ProjectResponses(_context.RaceResults
+            .AsNoTracking()
+            .Where(result => result.Id == id))
+            .SingleOrDefaultAsync();
     }
 
     public void Add(RaceResults result)

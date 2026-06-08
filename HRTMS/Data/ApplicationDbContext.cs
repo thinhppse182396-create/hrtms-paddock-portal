@@ -4,9 +4,6 @@ using HRTMS.Models.on_board;
 using HRTMS.Models.Roles;
 using HRTMS.Models.Statuss;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using System.Net.Sockets;
-using System.Security.Principal;
 
 namespace HRTMS.Data;
 

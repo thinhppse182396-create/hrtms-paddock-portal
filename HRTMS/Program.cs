@@ -40,6 +40,7 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IRoundService, RoundService>();
 builder.Services.AddScoped<ITournamentService, TournamentService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddCors(options =>
 {
@@ -80,6 +81,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+var seedOnly = args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase);
 
 if (app.Environment.IsDevelopment())
 {
@@ -87,11 +89,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment()))
+if (seedOnly || builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment()))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    if (seedOnly || builder.Configuration.GetValue("Database:SeedDemoData", app.Environment.IsDevelopment()))
+    {
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Accounts>>();
+        var timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        await DemoDataSeeder.SeedAsync(dbContext, passwordHasher, timeProvider);
+    }
+}
+
+if (seedOnly)
+{
+    return;
 }
 
 // Configure the HTTP request pipeline.

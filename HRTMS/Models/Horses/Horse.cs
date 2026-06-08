@@ -2,8 +2,6 @@
 using HRTMS.Models.Statuss;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Runtime.ConstrainedExecution;
-using System.Security.Principal;
 
 namespace HRTMS.Models.Horses
 {
