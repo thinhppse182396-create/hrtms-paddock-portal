@@ -1,9 +1,9 @@
-# HRTMS Paddock Portal
+# HRTMS
 
 Horse Racing Tournament Management System gồm:
 
 - `HRTMS/`: ASP.NET Core 8 + EF Core + SQL Server backend.
-- `Racing Hub Portal (1)/`: TanStack Start frontend từ Racing Hub Portal.
+- `HRTMS.Portal/`: TanStack Start frontend cho các cổng thông tin theo vai trò.
 
 ## Chạy backend
 
@@ -33,7 +33,7 @@ dotnet build HRTMS\HRTMS.csproj -c Release
 ## Chạy frontend
 
 ```powershell
-cd "Racing Hub Portal (1)"
+cd HRTMS.Portal
 npm install
 npm run dev
 ```
@@ -78,11 +78,11 @@ ký tự `#`, ví dụ `D:\C#\...`.
 ```powershell
 dotnet build HRTMS\HRTMS.csproj -c Release --no-restore
 dotnet ef migrations has-pending-model-changes --project HRTMS --configuration Release
-cd "Racing Hub Portal (1)"
+cd HRTMS.Portal
 npm run build
 npm exec tsc -- --noEmit
 npm test
 ```
 
-`npm run lint` hiện còn báo nhiều lỗi format kế thừa từ source Lovable; build và
+`npm run lint` hiện còn báo nhiều lỗi format kế thừa từ frontend ban đầu; build và
 type-check là hai cổng kiểm tra chạy ứng dụng chính.

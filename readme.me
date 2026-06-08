@@ -7,7 +7,7 @@ HRTMS la he thong quan ly giai dau dua ngua, ho tro van hanh cac nghiep vu chinh
 Du an gom hai phan chinh:
 
 - `HRTMS/`: backend ASP.NET Core cung cap API, xu ly nghiep vu va ket noi co so du lieu.
-- `Racing Hub Portal (1)/`: frontend TanStack Start cho cac cong thong tin theo tung vai tro nguoi dung.
+- `HRTMS.Portal/`: frontend TanStack Start cho cac cong thong tin theo tung vai tro nguoi dung.
 
 ## Vai tro nguoi dung
 
@@ -80,7 +80,7 @@ Cong cu va cau hinh:
 |   |-- wwwroot/
 |   |-- Program.cs
 |   `-- HRTMS.csproj
-|-- Racing Hub Portal (1)/
+|-- HRTMS.Portal/
 |   |-- src/
 |   |   |-- auth/
 |   |   |-- components/
@@ -114,7 +114,7 @@ http://localhost:5199/api/health
 ## Chay frontend
 
 ```powershell
-cd "Racing Hub Portal (1)"
+cd HRTMS.Portal
 npm install
 npm run dev
 ```
@@ -142,7 +142,7 @@ Smoke test API sau khi backend dang chay:
 Build va test frontend:
 
 ```powershell
-cd "Racing Hub Portal (1)"
+cd HRTMS.Portal
 npm run build
 npm test
 ```

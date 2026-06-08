@@ -33,7 +33,7 @@ VITE_API_URL=https://your-backend.example.com
 Sau đó:
 
 ```powershell
-cd "Racing Hub Portal (1)"
+cd HRTMS.Portal
 npm ci
 npm run build
 ```
